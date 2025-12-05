@@ -160,7 +160,7 @@ Trả về CHÍNH XÁC định dạng JSON sau, KHÔNG thêm text thừa:
 
 
 
-const apiKey = process.env.API_KEY;
+const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
     // This is a fallback for development, but the app expects the key to be injected.
