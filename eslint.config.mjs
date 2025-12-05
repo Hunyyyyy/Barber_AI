@@ -1,27 +1,36 @@
-// eslint.config.mjs (hoặc eslint.config.js)
+import { FlatCompat } from '@eslint/eslintrc';
+import { defineConfig } from "eslint/config";
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-import { defineConfig, globalIgnores } from "eslint/config";
-// THAY ĐỔI TẠI ĐÂY: Thêm .js
-import nextVitals from "eslint-config-next/core-web-vitals.js";
-// THAY ĐỔI TẠI ĐÂY: Thêm .js
-import nextTs from "eslint-config-next/typescript.js";
+// Thiết lập tương thích để đọc cấu hình Next.js cũ
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+  recommendedConfig: {
+    // Thêm các plugin mà cấu hình next/core-web-vitals yêu cầu
+    plugins: ['@next/next'],
+  },
+});
 
 const eslintConfig = defineConfig([
-  // ...nextVitals, // (Xem lưu ý bên dưới)
-  // ...nextTs,     // (Xem lưu ý bên dưới)
-  
-  // Dùng trực tiếp như một đối tượng cấu hình, không cần spread (truyền mảng)
-  nextVitals,
-  nextTs,
+  // 1. Cấu hình bỏ qua tệp
+  {
+    ignores: [
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+      "*.config.js",
+      "*.config.mjs",
+    ]
+  },
 
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
+  // 2. Tương thích ngược với các cấu hình Next.js
+  ...compat.extends('next', 'next/core-web-vitals'),
+  ...compat.extends('next/typescript'),
+  
 ]);
 
 export default eslintConfig;

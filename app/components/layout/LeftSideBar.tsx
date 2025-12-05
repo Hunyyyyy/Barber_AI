@@ -8,7 +8,7 @@ const navItems = [
   { href: "/home", label: "Trang Chủ", icon: Home },
   { href: "/try-hair", label: "Phân tích kiểu tóc phù hợp", icon: Sparkles },
   { href: "/queue", label: "Đặt lịch", icon: CalendarCheck2 },
-  { href: "/about", label: "About", icon: Info },
+  { href: "/home", label: "About", icon: Info },
 ];
 
 export default function LeftSideBar() {

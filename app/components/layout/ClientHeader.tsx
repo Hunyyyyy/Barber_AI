@@ -10,7 +10,7 @@ const navItems = [
   { href: "/home", label: "Trang chủ" },
   { href: "/try-hair", label: "Phân tích kiểu tóc phù hợp" },
   { href: "//queue", label: "Đặt lịch" },
-  { href: "/about", label: "About" },
+  { href: "/home", label: "About" },
 ] as const;
 
 function LogoutButton({
