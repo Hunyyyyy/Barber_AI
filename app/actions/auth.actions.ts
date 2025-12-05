@@ -96,7 +96,7 @@ export async function registerAction(prevState: any, formData: FormData) {
                 passwordHash: 'supabase_managed', 
                 role: 'USER',
                 avatarUrl: null,
-                credits: 2,
+                credits: 20,
             },
         });
         
