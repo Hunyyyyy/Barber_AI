@@ -96,6 +96,7 @@ export async function registerAction(prevState: any, formData: FormData) {
                 passwordHash: 'supabase_managed', 
                 role: 'USER',
                 avatarUrl: null,
+                credits: 2,
             },
         });
         
@@ -152,10 +153,10 @@ export async function loginAction(prevState: any, formData: FormData) {
   if (dbUser?.role === 'ADMIN') {
     redirect('/admin');
   } else if (dbUser?.role === 'BARBER') {
-    redirect('/queue'); // Hoặc trang dành riêng cho thợ
+    redirect('/home'); // Hoặc trang dành riêng cho thợ
   } else {
     // User thường
-    const redirectTo = formData.get('redirectTo')?.toString() || '/queue';
+    const redirectTo = formData.get('redirectTo')?.toString() || '/home';
     redirect(redirectTo);
   }
 }

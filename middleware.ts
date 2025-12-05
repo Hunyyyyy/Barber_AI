@@ -3,8 +3,9 @@ import { createMiddlewareSupabaseClient } from '@/lib/supabase/utils';
 import { NextResponse, type NextRequest } from 'next/server';
 
 const PROTECTED_API_PATHS = [
-  '/api/auth/register',
-  '/api/gemini/analyze',
+  // '/api/auth/register',
+  // '/api/gemini/analyze',
+  '/api/sepay/webhook',
 ];
 
 export async function middleware(req: NextRequest) {

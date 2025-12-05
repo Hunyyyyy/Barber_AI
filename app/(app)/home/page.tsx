@@ -40,7 +40,7 @@ export default async function HomePage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            <Link href="/queue/select-service">
+            <Link href="/queue">
               <button className="w-full sm:w-auto px-8 py-4 bg-white text-black rounded-2xl font-bold text-lg hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
                 <CalendarDays className="w-5 h-5" />
                 Lấy Số Ngay

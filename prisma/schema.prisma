@@ -54,13 +54,14 @@ model User {
   fullName      String
   avatarUrl     String?
   role          Role      @default(USER)
-  
+  creditTransactions CreditTransaction[]
+  credits       Int      @default(0)
   // Thông tin vật lý (để AI gợi ý tốt hơn lần sau)
   faceShape     FaceShape? 
 
   tickets       QueueTicket[]     // Lịch sử cắt tóc
   aiAnalyses    HairAnalysis[]    // Lịch sử dùng AI soi da/tóc
-
+  barberProfile Barber?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -108,10 +109,12 @@ model Service {
 
 model Barber {
   id            String   @id @default(cuid())
+  userId        String   @unique // @unique đảm bảo quan hệ 1-1
+  user          User     @relation(fields: [userId], references: [id])
   name          String
   isActive      Boolean  @default(true) // Có đi làm hôm nay không
   isBusy        Boolean  @default(false) // True nếu đang ở trạng thái SERVING hoặc FINISHING
-
+  
   tickets       QueueTicket[] // Các vé thợ này phục vụ
 }
 
@@ -142,7 +145,7 @@ model QueueTicket {
   totalPrice        Int       @default(0)
   paymentMethod     PaymentMethod?
   isPaid            Boolean   @default(false)
-
+  paidAt            DateTime?
   // Dịch vụ đã chọn
   services      TicketService[]
 
@@ -201,4 +204,15 @@ model GeneratedStyle {
   generatedImageUrl String     // Ảnh Gemini trả về
   
   createdAt       DateTime     @default(now())
+}
+// [MỚI] Bảng lưu lịch sử giao dịch nạp tiền mua Credit
+model CreditTransaction {
+  id              String   @id @default(cuid())
+  amount          Int      // Số tiền nạp (VNĐ)
+  credits         Int      // Số credit nhận được
+  code            String   @unique // Mã giao dịch (VD: NAP1001) để đối soát ngân hàng
+  status          String   @default("PENDING") // PENDING, PAID, CANCELLED
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  createdAt       DateTime @default(now())
 }

@@ -1,26 +1,24 @@
 // hooks/useSession.ts
 'use client';
 
-import { createClient } from '@supabase/supabase-js';
+// SỬA: Import đúng tên hàm và đường dẫn (giả sử bạn đã config alias @)
+import { createClient } from '@/lib/supabase/client';
+import { User } from '@supabase/supabase-js'; // Import type User
 import { useEffect, useState } from 'react';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export function useSession() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null); // SỬA: Dùng type User thay vì any
   const [loading, setLoading] = useState(true);
+  
+  // SỬA: Gọi đúng tên hàm createClient
+  const supabase = createClient();
 
   useEffect(() => {
     let mounted = true;
 
     const initializeSession = async () => {
       try {
-        // 1. Kiểm tra nhanh trong LocalStorage xem có dấu hiệu đã đăng nhập không
-        // Key mặc định của Supabase thường bắt đầu bằng "sb-" và kết thúc bằng "-auth-token"
-        // Nếu dùng custom key thì bạn thay đổi string tương ứng
+        // 1. Kiểm tra nhanh trong LocalStorage
         const isProbablyLoggedIn = typeof window !== 'undefined' && 
           Object.keys(window.localStorage).some(key => 
             key.startsWith('sb-') && key.endsWith('-auth-token')
@@ -31,18 +29,14 @@ export function useSession() {
 
         if (mounted) {
           if (session) {
-            // Trường hợp 1: Có session xịn -> Set User, tắt Loading ngay
+            // Trường hợp 1: Có session -> Set User, tắt Loading
             setUser(session.user);
             setLoading(false);
           } else if (isProbablyLoggedIn) {
-             // Trường hợp 2: Không lấy được session ngay (getSession trả về null) 
-             // NHƯNG trong máy lại có Token -> Khả năng cao là đang refresh token
-             // -> GIỮ LOADING = TRUE, đợi onAuthStateChange xử lý tiếp
-             // (Tuy nhiên vẫn set User = null tạm thời)
+             // Trường hợp 2: Có token rác nhưng chưa có session (đang refresh) -> Giữ loading
              setUser(null);
-             // Không set Loading(false) ở đây để tránh Flash
           } else {
-            // Trường hợp 3: Không có session, không có token trong máy -> Chắc chắn là Guest
+            // Trường hợp 3: Guest -> Tắt loading
             setUser(null);
             setLoading(false);
           }
@@ -55,12 +49,10 @@ export function useSession() {
 
     initializeSession();
 
-    // 3. Lắng nghe thay đổi trạng thái (Token refresh, Sign in, Sign out)
+    // 3. Lắng nghe thay đổi trạng thái
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (mounted) {
         setUser(session?.user ?? null);
-        // Khi có sự kiện từ Auth (bất kể là đăng nhập hay đăng xuất thành công),
-        // ta mới chắc chắn 100% để tắt loading
         setLoading(false);
       }
     });
@@ -69,7 +61,7 @@ export function useSession() {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase]); // Thêm supabase vào dependency array (best practice)
 
   return { user, loading };
 }

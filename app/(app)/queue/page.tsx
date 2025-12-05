@@ -49,6 +49,8 @@ export default function QueueHomePage() {
 
   const hasTicket = !!myTicket;
   const userName = currentUser?.name || 'Khách';
+  const userRole = currentUser?.role || null;
+  console.log('QueueHomePage - userRole:', userRole);
   const waitingCount = queue.filter(q => ['WAITING', 'ASYNC_WAIT', 'CALLING'].includes(q.status)).length;
 
   // Logic check status đang làm
@@ -168,6 +170,7 @@ export default function QueueHomePage() {
                 <CurrentQueueList 
                    queue={queue} 
                    highlightTicketId={myTicket?.id} 
+                   currentUserRole={userRole}
                 />
 
                 {queue.length === 0 && (

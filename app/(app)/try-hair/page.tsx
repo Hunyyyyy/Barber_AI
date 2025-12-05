@@ -2,10 +2,10 @@
 
 import HairstyleDetailModal from "@/components/hairstyle/HairstyleCard"; // Đảm bảo component này render modal chi tiết
 import TryOnModal from "@/components/hairstyle/TryOnModal";
+import { createClient } from "@/lib/supabase/client"; // Supabase Client
 import type { GeneralAdvice, Hairstyle } from "@/types/hairstyle";
 import { AlertCircle, Camera, ChevronDown, ChevronRight, Info, Loader2, RefreshCcw, Scissors, Sparkles, Upload, Wand2, X } from "lucide-react";
 import { useRef, useState } from "react";
-
 // --- Utility Functions ---
 const hexToRgb = (hex: string): [number, number, number] => {
   const cleanHex = hex.startsWith("#") ? hex.slice(1) : hex;
@@ -26,7 +26,7 @@ export default function SuggestPage() {
   const [image, setImage] = useState<string | null>(null);
   const [hairstyles, setHairstyles] = useState<Hairstyle[]>([]);
   const [generalAdvice, setGeneralAdvice] = useState<GeneralAdvice | null>(null);
-  
+  const supabase = createClient();
   // State quản lý Modals
   const [selectedHairstyle, setSelectedHairstyle] = useState<Hairstyle | null>(null); // Để xem chi tiết text
   const [selectedTryOn, setSelectedTryOn] = useState<Hairstyle | null>(null); // Để mở modal AI Generate
@@ -88,9 +88,19 @@ export default function SuggestPage() {
     if (!image) return;
     setIsLoading(true); setError(null);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      // (Tuỳ chọn) Bắt buộc đăng nhập mới được dùng
+      if (!token) {
+        throw new Error("Vui lòng đăng nhập để sử dụng tính năng này!");
+      }
       const res = await fetch("/api/gemini/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+          
+         },
         body: JSON.stringify({ imageBase64: image.split(",")[1] }),
       });
       const data = await res.json();
@@ -359,12 +369,12 @@ export default function SuggestPage() {
         )}
 
         {error && (
-            <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-4 rounded-full shadow-2xl z-50 flex items-center gap-4 animate-in slide-in-from-top-2">
-                <AlertCircle className="w-5 h-5" />
-                <span className="font-medium text-sm">{error}</span>
-                <button onClick={() => setError(null)}><X className="w-4 h-4 opacity-80" /></button>
-            </div>
-        )}
+        <div className="z-[100] fixed top-24 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-4 animate-in slide-in-from-top-2 w-max max-w-[90vw]">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <span className="font-medium text-sm">{error}</span>
+            <button onClick={() => setError(null)}><X className="w-4 h-4 opacity-80" /></button>
+        </div>
+      )}
 
         {/* Modal Logic */}
         {selectedHairstyle && (

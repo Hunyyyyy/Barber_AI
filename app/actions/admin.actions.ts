@@ -150,23 +150,74 @@ export async function searchUsers(query: string) {
 }
 
 export async function updateUserRole(userId: string, newRole: 'ADMIN' | 'BARBER' | 'USER') {
-    // 1. Cập nhật DB chính (Prisma)
-    await prisma.user.update({
-        where: { id: userId },
-        data: { role: newRole }
-    });
+    try {
+        await checkAdmin();
 
-    // 2. Cập nhật Supabase Auth (Metadata)
-    // Cần dùng Service Role Key (trong .env.local) để có quyền sửa user khác
-    const supabaseAdmin = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!, 
-        { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+        // Sử dụng Transaction để đảm bảo tính toàn vẹn dữ liệu
+        await prisma.$transaction(async (tx) => {
+            // 1. Cập nhật Role trong bảng User
+            const updatedUser = await tx.user.update({
+                where: { id: userId },
+                data: { role: newRole }
+            });
 
-    await supabaseAdmin.auth.admin.updateUserById(userId, {
-        user_metadata: { role: newRole }
+            // 2. Logic đồng bộ bảng Barber
+            if (newRole === 'BARBER') {
+                // Nếu lên chức BARBER -> Thêm vào bảng Barber
+                // Dùng upsert: Nếu chưa có thì tạo, có rồi thì cập nhật active
+                await tx.barber.upsert({
+                    where: { userId: userId },
+                    create: {
+                        userId: userId,
+                        name: updatedUser.fullName || 'Thợ mới', // Lấy tên từ User
+                        isActive: true,
+                        isBusy: false
+                    },
+                    update: {
+                        isActive: true, // Kích hoạt lại nếu trước đó đã bị ẩn
+                        // name: updatedUser.fullName // Có thể cập nhật lại tên nếu muốn
+                    }
+                });
+            } else {
+                // Nếu chuyển từ BARBER xuống USER/ADMIN -> Xóa khỏi bảng Barber (hoặc set isActive: false)
+                // Ở đây mình chọn xóa để danh sách thợ sạch sẽ
+                try {
+                    await tx.barber.delete({
+                        where: { userId: userId }
+                    });
+                } catch (e) {
+                    // Bỏ qua lỗi nếu user này chưa từng là Barber
+                }
+            }
+        });
+
+        // 3. Cập nhật Supabase Auth (Metadata) - Không đổi
+        const supabaseAdmin = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!, 
+            { auth: { autoRefreshToken: false, persistSession: false } }
+        );
+
+        await supabaseAdmin.auth.admin.updateUserById(userId, {
+            user_metadata: { role: newRole }
+        });
+        
+        revalidatePath('/admin/users'); // Làm mới cache trang admin users
+        return { success: true };
+
+    } catch (error) {
+        console.error("Update Role Error:", error);
+        return { success: false, error: "Lỗi khi cập nhật quyền." };
+    }
+}
+
+// --- 6. LẤY DANH SÁCH USER (Sửa lại để hỗ trợ search luôn nếu muốn) ---
+export async function getAllUsers() {
+    await checkAdmin();
+    // Lấy 50 user mới nhất
+    return await prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 50, 
+        select: { id: true, fullName: true, email: true, phone: true, role: true, createdAt: true }
     });
-    
-    return { success: true };
 }

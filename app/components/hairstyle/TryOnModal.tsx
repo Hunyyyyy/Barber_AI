@@ -1,8 +1,9 @@
 "use client";
 
+import { getUserCredits } from "@/actions/user.actions"; // Import Server Action mới
 import { GeneralAdvice, Hairstyle } from "@/types/hairstyle";
-import { Download, Glasses, Loader2, Palette, Shirt, Sparkles, Wand2, X } from "lucide-react"; // Đã thêm Download
-import { useState } from "react";
+import { Coins, Download, Glasses, Loader2, Palette, Shirt, Sparkles, Wand2, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface TryOnModalProps {
   hairstyle: Hairstyle;
@@ -13,7 +14,6 @@ interface TryOnModalProps {
 
 export default function TryOnModal({ hairstyle, originalImage, generalAdvice, onClose }: TryOnModalProps) {
   
-  // State giữ nguyên
   const [options, setOptions] = useState({
     applyHair: true,
     applyColor: !!generalAdvice.color_suggestion,
@@ -24,8 +24,14 @@ export default function TryOnModal({ hairstyle, originalImage, generalAdvice, on
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [credits, setCredits] = useState<number | null>(null); // State lưu credit
 
-  // --- HÀM TẠO PROMPT (Giữ nguyên) ---
+  // Lấy số dư khi mở Modal
+  useEffect(() => {
+    getUserCredits().then(val => setCredits(val));
+  }, []);
+
+  // Hàm tạo Prompt (Giữ nguyên)
   const generatePrompt = () => {
     let prompt = `Thay đổi kiểu tóc của người trong ảnh thành kiểu "${hairstyle.name}". Mô tả kiểu tóc: ${hairstyle.how_to_style}. `;
     if (options.applyColor && generalAdvice.color_suggestion) {
@@ -39,56 +45,67 @@ export default function TryOnModal({ hairstyle, originalImage, generalAdvice, on
         .map(([_, value]) => value)
         .filter((val) => val && val.length > 2)
         .join(", ");
-      
-      if (accessoriesList) {
-        prompt += `Thêm phụ kiện phù hợp: ${accessoriesList}. `;
-      }
+      if (accessoriesList) prompt += `Thêm phụ kiện phù hợp: ${accessoriesList}. `;
     }
     if (options.applyFaceCare) {
       prompt += `Cải thiện làn da mặt mịn màng, sáng hơn (giữ nguyên các nét khuôn mặt). `;
     }
-    prompt += `QUAN TRỌNG: Giữ nguyên khuôn mặt gốc, biểu cảm và bối cảnh (background). Chỉ thay đổi tóc và các yếu tố được yêu cầu. Ảnh chất lượng cao, thực tế (photorealistic), chuẩn 4k.`;
+    prompt += `QUAN TRỌNG: Giữ nguyên khuôn mặt gốc, biểu cảm và bối cảnh. Ảnh chất lượng cao, thực tế (photorealistic).`;
     return prompt.trim();
   };
 
-  // --- HÀM TẠO ẢNH (Giữ nguyên) ---
   const handleGenerate = async () => {
+    // Chặn spam click ở Client
+    if (isGenerating) return;
+    if (credits !== null && credits < 1) {
+        alert("Bạn đã hết lượt tạo ảnh. Vui lòng nạp thêm hoặc đến tiệm cắt tóc!");
+        return;
+    }
+
     setIsGenerating(true);
     setGeneratedImage(null);
+
     try {
       const res = await fetch("/api/gemini/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // Lưu ý: Base64 ảnh gốc sẽ được gửi đi
           imageBase64: originalImage, 
           prompt: generatePrompt(),
         }),
       });
+
       const data = await res.json();
+
+      // Xử lý lỗi 402 (Hết tiền) từ Server (Lớp bảo vệ thứ 2)
+      if (res.status === 402) {
+        alert(data.error);
+        setCredits(0); // Cập nhật về 0 để UI disable
+        return;
+      }
+
+      if (!res.ok) throw new Error(data.error || "Lỗi tạo ảnh");
+
       if (data.editedImage) {
         setGeneratedImage(data.editedImage);
-      } else {
-        throw new Error("Không nhận được ảnh trả về");
-      }
-    } catch (err) {
+        // Cập nhật số dư mới từ Server trả về
+        if (typeof data.remainingCredits === 'number') {
+            setCredits(data.remainingCredits);
+        }
+      } 
+    } catch (err: any) {
       console.error(err);
-      alert("Lỗi khi tạo ảnh. Vui lòng thử lại!");
+      alert(err.message || "Lỗi khi tạo ảnh. Vui lòng thử lại!");
     } finally {
       setIsGenerating(false);
     }
   };
   
-  // --- HÀM TẢI ẢNH VỀ (Mới) ---
   const handleDownload = () => {
     if (generatedImage) {
-      // Tạo một thẻ <a> tạm thời
       const link = document.createElement('a');
-      link.href = generatedImage; // Base64 Data URL
-      // Đặt tên file, sử dụng tên kiểu tóc để dễ nhận biết
+      link.href = generatedImage;
       link.download = `aibarber_${hairstyle.english_name.replace(/\s/g, '-')}_${Date.now()}.png`; 
-      
-      // Thêm vào body, click, và xóa đi
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -97,70 +114,58 @@ export default function TryOnModal({ hairstyle, originalImage, generalAdvice, on
 
   return (
     <div className="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4" onClick={onClose}>
-      <div 
-        className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200" 
-        onClick={e => e.stopPropagation()}
-      >
+      <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        
         {/* Header */}
         <div className="p-5 border-b border-neutral-100 flex justify-between items-center bg-white sticky top-0 z-10">
           <div>
             <h3 className="text-lg md:text-xl font-bold text-neutral-900 line-clamp-1">Thử: {hairstyle.name}</h3>
-            <p className="text-xs text-neutral-500">Chọn các yếu tố muốn áp dụng</p>
+            {/* HIỂN THỊ CREDIT */}
+            <div className="flex items-center gap-1.5 mt-1">
+                <Coins className="w-3.5 h-3.5 text-yellow-600" />
+                <span className="text-xs font-bold text-neutral-600">
+                    {credits === null ? '...' : `${credits} lượt còn lại`}
+                </span>
+            </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer">
             <X className="w-5 h-5 text-neutral-500" />
           </button>
         </div>
 
-        {/* Body (Scrollable) */}
+        {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
-          
-          {/* Ảnh kết quả */}
           {generatedImage ? (
             <div className="space-y-4 animate-in fade-in duration-500">
               <div className="relative rounded-2xl overflow-hidden shadow-lg border border-neutral-200 bg-neutral-50 aspect-[3/4]">
                 <img src={generatedImage} alt="AI generated" className="w-full h-full object-cover" />
-                <div className="absolute top-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded-md backdrop-blur-md">
-                  AI Generated
-                </div>
+                <div className="absolute top-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded-md backdrop-blur-md">AI Generated</div>
               </div>
               
-              {/* Nút Tải về và Thử lại (Mới) */}
               <div className="grid grid-cols-2 gap-3">
-                <button 
-                    onClick={() => setGeneratedImage(null)} 
-                    className="w-full py-3 text-sm font-bold text-neutral-600 border border-neutral-200 rounded-xl hover:bg-neutral-50 transition cursor-pointer"
-                >
-                    Thử lại
-                </button>
-                <button 
-                    onClick={handleDownload}
-                    className="w-full py-3 text-sm font-bold bg-black text-white rounded-xl hover:bg-neutral-800 transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                    <Download className="w-4 h-4" /> Tải ảnh về
-                </button>
+                <button onClick={() => setGeneratedImage(null)} className="w-full py-3 text-sm font-bold text-neutral-600 border border-neutral-200 rounded-xl hover:bg-neutral-50 transition cursor-pointer">Thử lại</button>
+                <button onClick={handleDownload} className="w-full py-3 text-sm font-bold bg-black text-white rounded-xl hover:bg-neutral-800 transition flex items-center justify-center gap-2 cursor-pointer"><Download className="w-4 h-4" /> Tải ảnh về</button>
               </div>
             </div>
           ) : (
-            /* Form Tùy chọn */
             <div className="space-y-4">
-               {/* Preview ảnh gốc nhỏ */}
+               {/* Preview ảnh gốc */}
                <div className="flex items-center gap-4 p-3 bg-neutral-50 rounded-xl border border-neutral-100">
                   <img src={originalImage} alt="Original" className="w-12 h-12 rounded-lg object-cover" />
                   <div className="text-xs text-neutral-500">
-                    <p>Đang dùng ảnh gốc của bạn.</p>
-                    <p>AI sẽ giữ nguyên khuôn mặt.</p>
+                    <p>Dùng ảnh gốc.</p>
+                    <p className="text-blue-600 font-medium">Chi phí: 1 Lượt / lần tạo</p>
                   </div>
                </div>
 
               <div className="space-y-3">
-                {/* Checkbox items (Giữ nguyên) */}
+                {/* Options List */}
                 <label className="flex items-start gap-3 p-3 rounded-xl border border-transparent hover:bg-neutral-50 transition cursor-pointer select-none">
                   <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-colors ${options.applyHair ? 'bg-black border-black' : 'border-neutral-300'}`}>
                     {options.applyHair && <Sparkles className="w-3 h-3 text-white" />}
                   </div>
                   <div className="flex-1">
-                    <span className="font-bold text-sm text-neutral-900 block">Kiểu tóc mới (Bắt buộc)</span>
+                    <span className="font-bold text-sm text-neutral-900 block">Kiểu tóc mới</span>
                     <span className="text-xs text-neutral-500 line-clamp-1">{hairstyle.name}</span>
                   </div>
                 </label>
@@ -226,18 +231,25 @@ export default function TryOnModal({ hairstyle, originalImage, generalAdvice, on
           <div className="p-5 border-t border-neutral-100 bg-white">
             <button
               onClick={handleGenerate}
-              disabled={isGenerating}
-              className="w-full py-4 bg-black text-white rounded-xl font-bold text-base hover:bg-neutral-800 transition flex items-center justify-center gap-2 disabled:opacity-70 shadow-lg shadow-neutral-200 cursor-pointer"
+              disabled={isGenerating || (credits !== null && credits < 1)}
+              className={`w-full py-4 rounded-xl font-bold text-base transition flex items-center justify-center gap-2 shadow-lg shadow-neutral-200 cursor-pointer
+                ${(credits !== null && credits < 1) 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-black text-white hover:bg-neutral-800'
+                }
+              `}
             >
               {isGenerating ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  AI đang xử lý (15s)...
+                  Đang xử lý...
                 </>
+              ) : (credits !== null && credits < 1) ? (
+                <>Hết lượt dùng</>
               ) : (
                 <>
                   <Wand2 className="w-5 h-5" />
-                  Tạo ảnh ngay
+                  Tạo ảnh ngay (-1 Lượt)
                 </>
               )}
             </button>

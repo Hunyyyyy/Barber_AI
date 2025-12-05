@@ -2,9 +2,9 @@
 
 import { prisma } from '@/lib/supabase/prisma/db';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getCurrentUserRole } from '@/lib/supabase/user';
 import { TicketStatus } from '@prisma/client'; // Import Enum từ Prisma
 import { revalidatePath } from 'next/cache';
-
 // --- HELPER FUNCTIONS ---
 
 // Lấy cài đặt cửa hàng
@@ -270,7 +270,7 @@ export async function fetchQueuePageData() {
       prisma.queueTicket.findMany({
         where: { 
           date: { gte: date }, 
-          status: { notIn: ['CANCELLED', 'PAID', 'SKIPPED'] } 
+          status: { notIn: ['CANCELLED', 'PAID', 'SKIPPED','COMPLETED'] } 
         },
         include: {
           services: { include: { service: true } },
@@ -291,7 +291,8 @@ export async function fetchQueuePageData() {
           status: { notIn: ['CANCELLED', 'PAID', 'SKIPPED'] }
         },
         orderBy: { ticketNumber: 'desc' }
-      }) : null
+      }) : null,
+      getCurrentUserRole()
     ]);
 
     // 3. Tính toán thời gian chờ chung (cho người chưa lấy số)
@@ -328,7 +329,8 @@ export async function fetchQueuePageData() {
         currentUser: user ? { 
           name: user.user_metadata?.name || 'Bạn',
           phone: user.user_metadata?.phone || null,
-          id: user.id
+          id: user.id,
+          role: await getCurrentUserRole()
         } : null
       }
     };
@@ -336,6 +338,41 @@ export async function fetchQueuePageData() {
   } catch (error) {
     console.error("Fetch Queue Data Error:", error);
     return { success: false, error: 'Lỗi tải dữ liệu hàng đợi' };
+  }
+}
+// --- UPDATE 2: THÊM ACTION CHO NÚT "HOÀN THÀNH" ---
+export async function completeTicketAction(ticketId: string, formData: FormData) { 
+  try {
+    // 1. Check quyền
+    const role = await getCurrentUserRole();
+    if (role !== 'BARBER' && role !== 'ADMIN') {
+      throw new Error("Unauthorized: Bạn không phải thợ!");
+    }
+
+    // 2. Cập nhật vé (logic cũ giữ nguyên)
+    const ticket = await prisma.queueTicket.update({
+      where: { id: ticketId },
+      data: {
+        status: 'COMPLETED',
+        completedAt: new Date(),
+      }
+    });
+
+    // 3. Giải phóng thợ và autoAssignTickets (logic cũ giữ nguyên)
+    if (ticket.barberId) {
+      await prisma.barber.update({
+        where: { id: ticket.barberId },
+        data: { isBusy: false }
+      });
+    }
+
+    await autoAssignTickets();
+    revalidatePath('/queue');
+    return { success: true };
+  } catch (error) {
+    console.error("Complete Ticket Error:", error);
+    // Lưu ý: Có thể trả về error message để hiển thị UI
+    return { success: false, error: 'Lỗi khi hoàn thành vé' };
   }
 }
 /**
@@ -414,6 +451,14 @@ export async function createQueueTicket(prevState: any, formData: FormData) {
 
     if (!dbUser) return { success: false, error: 'Không tìm thấy thông tin người dùng.' };
 
+    // --- [MỚI] KIỂM TRA CỬA HÀNG CÓ ĐÓNG CỬA KHÔNG ---
+    const shopSettings = await prisma.shopSetting.findUnique({ where: { id: '1' } });
+    
+    // Nếu không tìm thấy setting hoặc isShopOpen = false
+    if (shopSettings && !shopSettings.isShopOpen) {
+        return { success: false, error: 'Cửa hàng hiện đang đóng cửa, vui lòng quay lại sau!' };
+    }
+    
     const servicesRaw = formData.get('services') as string;
     const serviceIds = JSON.parse(servicesRaw || '[]') as string[];
 
@@ -535,4 +580,24 @@ export async function updateTicketStatus(
     return { success: false, error: 'Lỗi cập nhật trạng thái' };
   }
 }
+/**
+ * Hàm kiểm tra nhanh trạng thái thanh toán của vé (Dùng cho Polling ở Client)
+ */
+export async function checkTicketPaymentStatus(ticketId: string) {
+  try {
+    const ticket = await prisma.queueTicket.findUnique({
+      where: { id: ticketId },
+      select: { id: true, isPaid: true, status: true }
+    });
+    
+    if (!ticket) return { success: false, isPaid: false };
 
+    return { 
+      success: true, 
+      isPaid: ticket.isPaid, 
+      status: ticket.status 
+    };
+  } catch (error) {
+    return { success: false, isPaid: false };
+  }
+}

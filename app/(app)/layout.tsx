@@ -1,7 +1,8 @@
-//test-barber\app\(app)\suggest\layout.tsx
+// test-barber\app\(app)\suggest\layout.tsx
 import Footer from "@/components/layout/Footer";
 import LeftSideBar from "@/components/layout/LeftSideBar";
 import ServerHeader from "@/components/layout/ServerHeader";
+import NextTopLoader from 'nextjs-toploader'; // 1. Đã import
 
 export const metadata = {
   title: "Suggest Hairstyles - Barber App",
@@ -10,7 +11,13 @@ export const metadata = {
 
 export default function SuggestLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex flex-col bg-linear-to-br from-gray-50 to-white">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-white">
+      {/* 2. Cần đặt Component vào đây (thường đặt đầu tiên) */}
+      <NextTopLoader 
+        color="#000000"
+        showSpinner={false}
+      />
+
       <ServerHeader />
       
       <div className="flex flex-1">

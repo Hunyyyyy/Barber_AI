@@ -25,7 +25,7 @@ export default function LoginPage() {
   const [state, formAction] = useActionState(loginAction, null);
   const searchParams = useSearchParams();
   // Lấy URL cần quay lại sau khi login, mặc định là /try-hair
-  const redirectTo = searchParams.get("redirectedFrom") || "/try-hair";
+  const redirectTo = searchParams.get("redirectedFrom") || "/home";
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">

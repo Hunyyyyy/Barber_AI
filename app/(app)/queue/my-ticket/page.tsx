@@ -2,12 +2,12 @@
 'use client';
 
 import { cancelQueueTicket, getMyLatestTicket } from '@/actions/queue.actions';
+import PaymentModal from '@/components/queue/PaymentModal';
 import QueueTicket from '@/components/queue/QueueTicket';
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock, Scissors, Sparkles } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, Clock, CreditCard, Scissors, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-
 const AVG_SERVICE_MINUTES = 25; // Thời gian ước tính mỗi khách
 
 export default function MyTicketPage() {
@@ -15,14 +15,17 @@ export default function MyTicketPage() {
   const [ticket, setTicket] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
-
+  const [showPayment, setShowPayment] = useState(false);
   // Hàm fetch dữ liệu
   const fetchTicket = async () => {
     try {
       const res = await getMyLatestTicket();
       if (res.success) {
         setTicket(res.ticket);
-        // Tùy chọn: Nếu không có vé active thì redirect hoặc giữ nguyên hiển thị empty state
+        // Nếu vé đã thanh toán (isPaid = true), tự động đóng modal nếu đang mở
+        if (res.ticket?.isPaid && showPayment) {
+            setShowPayment(false);
+        }
       }
     } catch (error) {
       console.error(error);
@@ -31,10 +34,9 @@ export default function MyTicketPage() {
     }
   };
 
-  // 1. Fetch ngay khi load và Polling mỗi 10s
   useEffect(() => {
     fetchTicket();
-    const interval = setInterval(fetchTicket, 10000); 
+    const interval = setInterval(fetchTicket, 5000); // Polling nhanh hơn (5s) để bắt trạng thái thanh toán
     return () => clearInterval(interval);
   }, []);
 
@@ -60,45 +62,30 @@ export default function MyTicketPage() {
     }
   };
 
-  // --- Render Loading ---
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-10 h-10 border-4 border-gray-300 border-t-black rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="w-10 h-10 border-4 border-gray-300 border-t-black rounded-full animate-spin"></div></div>;
 
-  // --- Render khi không có vé ---
-  if (!ticket) {
-     return (
+  if (!ticket) return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 space-y-4">
             <p className="text-xl text-gray-600">Bạn hiện không có vé nào đang chờ.</p>
-            <Link href="/queue" className="px-6 py-3 bg-black text-white rounded-xl font-bold hover:scale-105 transition-transform">
-                Lấy số ngay
-            </Link>
+            <Link href="/queue" className="px-6 py-3 bg-black text-white rounded-xl font-bold hover:scale-105 transition-transform">Lấy số ngay</Link>
         </div>
-     );
-  }
+  );
 
-  // --- Chuẩn bị dữ liệu hiển thị ---
+  // --- Logic hiển thị ---
   const currentPosition = ticket.position ?? 0;
   const status = ticket.status;
-  
-  // Logic kiểm tra nhóm trạng thái
   const isServing = ['SERVING', 'FINISHING', 'IN_PROGRESS'].includes(status);
-  const isProcessing = status === 'PROCESSING'; // Ngấm thuốc
+  const isProcessing = status === 'PROCESSING';
   const isCalling = status === 'CALLING';
   const isWaiting = status === 'WAITING';
 
+  const canPay = !ticket.isPaid && ticket.totalPrice > 0;
   // Tính thời gian chờ (Chỉ hiển thị con số khi đang đợi)
   const estimatedWaitMinutes = currentPosition > 0 ? currentPosition * AVG_SERVICE_MINUTES + 5 : 5;
-  
   let estimatedTimeMessage = `Khoảng ${estimatedWaitMinutes} phút`;
   if (isServing || isProcessing) estimatedTimeMessage = 'Đang thực hiện';
   else if (isCalling) estimatedTimeMessage = 'Vui lòng đến quầy';
 
-  // Cấu hình Thông báo trạng thái & Màu sắc
   let StatusIcon = AlertCircle;
   let statusMessage = 'Đang chờ đến lượt của bạn.';
   let statusColorClass = 'bg-indigo-50/50 text-indigo-800 border-indigo-200 border';
@@ -180,7 +167,21 @@ export default function MyTicketPage() {
                   onCancel={handleCancel}
                 />
               </div>
-
+                  {/* NÚT THANH TOÁN - CHỈ HIỆN KHI CẦN THANH TOÁN */}
+              {canPay && (
+                <div className="animate-in slide-in-from-bottom-4 fade-in duration-500">
+                    <button 
+                        onClick={() => setShowPayment(true)}
+                        className="w-full py-4 bg-black text-white rounded-2xl font-bold text-lg shadow-xl shadow-neutral-300 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                    >
+                        <CreditCard className="w-6 h-6" />
+                        Thanh toán ngay
+                    </button>
+                    <p className="text-center text-xs text-gray-400 mt-3">
+                        Hỗ trợ mọi ngân hàng, Momo, ZaloPay qua VietQR
+                    </p>
+                </div>
+              )}
               {/* Thông tin phụ (Chỉ hiện khi đang đợi) */}
               {isWaiting && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
@@ -219,6 +220,10 @@ export default function MyTicketPage() {
           </div>
         </div>
       </div>
+      {/* MODAL THANH TOÁN */}
+      {showPayment && (
+        <PaymentModal ticket={ticket} onClose={() => setShowPayment(false)} />
+      )}
     </div>
   );
 }

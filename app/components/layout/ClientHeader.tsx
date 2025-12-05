@@ -9,8 +9,8 @@ import ActiveLink from "./ActiveLink";
 const navItems = [
   { href: "/home", label: "Trang chủ" },
   { href: "/try-hair", label: "Phân tích kiểu tóc phù hợp" },
-  { href: "//queue", label: "Đặt lịch" },
-  { href: "/home", label: "About" },
+  { href: "/queue", label: "Đặt lịch" },
+  { href: "/about", label: "About" },
 ] as const;
 
 function LogoutButton({
@@ -65,6 +65,7 @@ export default function ClientHeader({ serverUser }: { serverUser: any }) {
   // Lấy tên từ metadata, nếu không có thì fallback về email hoặc "Khách"
   const userName = serverUser?.user_metadata?.name || serverUser?.email?.split('@')[0] || "Khách";
   const role = serverUser?.user_metadata?.role || "USER";
+  const avatarUrl = serverUser?.user_metadata?.avatar_url;
   // Lấy chữ cái đầu để làm Avatar
   const userInitial = userName.charAt(0).toUpperCase();
 
@@ -92,7 +93,7 @@ export default function ClientHeader({ serverUser }: { serverUser: any }) {
       >
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           {/* LOGO */}
-          <ActiveLink href="/" className="group flex items-center gap-3">
+          <ActiveLink href="/home" className="group flex items-center gap-3">
             {() => (
               <>
                 <div className="w-10 h-10 bg-black text-white rounded-lg flex items-center justify-center transition-transform group-hover:rotate-12">
@@ -151,14 +152,21 @@ export default function ClientHeader({ serverUser }: { serverUser: any }) {
                   {/* ----------------------------------- */}
 
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer border border-neutral-200 ${
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer border border-neutral-200 overflow-hidden ${
                       isProfileMenuOpen
-                        ? "bg-black text-white ring-2 ring-neutral-200"
-                        : "bg-neutral-50 text-neutral-900 group-hover:bg-white group-hover:shadow-md"
-                    }`}
+                        ? "ring-2 ring-neutral-200"
+                        : "group-hover:shadow-md"
+                    } ${!avatarUrl ? "bg-neutral-50 text-neutral-900" : ""}`}
                   >
-                    {/* Hiển thị ký tự đầu của tên thay vì icon User đơn điệu */}
-                    <span className="font-bold text-sm">{userInitial}</span>
+                    {avatarUrl ? (
+                      <img 
+                        src={avatarUrl} 
+                        alt="Avatar" 
+                        className="w-full h-full object-cover" 
+                      />
+                    ) : (
+                      <span className="font-bold text-sm">{userInitial}</span>
+                    )}
                   </div>
                 </button>
               ) : (

@@ -1,14 +1,16 @@
 // components/queue/CurrentQueueList.tsx
 import { AlertCircle, Clock, Crown, Scissors, Sparkles } from 'lucide-react';
-
-
+import CompleteTicketButton from './CompleteTicketButton';
 // THÊM highlightPhone VÀO ĐÂY
 interface CurrentQueueListProps {
   queue: any[]; // Dùng any tạm hoặc type chính xác từ Prisma include
   highlightTicketId?: string; // <-- Đổi thành ID
+  currentUserRole?: string | null;
 }
 
-export default function CurrentQueueList({ queue, highlightTicketId }: CurrentQueueListProps) { 
+export default function CurrentQueueList({ 
+  queue, highlightTicketId,currentUserRole }: CurrentQueueListProps) { 
+    console.log('CurrentQueueList - currentUserRole:', currentUserRole);
    if (queue.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
@@ -36,11 +38,16 @@ export default function CurrentQueueList({ queue, highlightTicketId }: CurrentQu
           // Logic so sánh ID
           const isMyTicket = highlightTicketId && item.id === highlightTicketId;
           const isInProgress = ['SERVING', 'FINISHING', 'PROCESSING', 'CALLING'].includes(item.status);
-          
+          const showFinishButton = currentUserRole === 'BARBER' && 
+                                   ['SERVING', 'FINISHING'].includes(item.status);
           // Trạng thái chờ xử lý thuốc (Ngấm thuốc) -> Thợ rảnh tay nhưng khách chưa xong
           const isProcessing = item.status === 'PROCESSING';
           
           const isOverdue = item.status === 'SKIPPED' || item.status === 'CANCELLED';
+          // Lấy thông tin Avatar & Tên
+          const avatarUrl = item.user?.avatarUrl;
+          const displayName = item.guestName || item.user?.fullName || 'Khách vãng lai';
+          const initial = displayName.charAt(0).toUpperCase();
           return (
             <div
               key={item.id}
@@ -52,59 +59,82 @@ export default function CurrentQueueList({ queue, highlightTicketId }: CurrentQu
               `}
             >
               <div className="flex items-center gap-4">
-                {/* Số thứ tự */}
-                <div className={`
-                  relative w-12 h-12 rounded-full flex items-center justify-center font-black text-lg
-                  ${isMyTicket ? 'bg-amber-500 text-white shadow-lg' : ''}
-                  ${isInProgress ? 'bg-black text-white animate-pulse' : ''}
-                  ${isOverdue ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'}
-                `}>
-                  {isMyTicket && <Crown className="w-5 h-5 absolute -top-2 -right-2 text-amber-600" />}
-                  {item.ticketNumber}
+                
+                {/* --- [SỬA] KHU VỰC AVATAR (Thay vì số thứ tự to đùng) --- */}
+                <div className="relative">
+                    <div className={`
+                        w-14 h-14 rounded-full border-2 overflow-hidden flex items-center justify-center
+                        ${isMyTicket ? 'border-amber-500 shadow-md' : 'border-gray-200'}
+                        ${isInProgress ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}
+                        bg-gray-100
+                    `}>
+                        {avatarUrl ? (
+                            <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+                        ) : (
+                            <span className="font-black text-xl text-gray-400 select-none">
+                                {initial}
+                            </span>
+                        )}
+                    </div>
+                    
+                    {/* Icon Crown nếu là vé của tôi */}
+                    {isMyTicket && (
+                        <div className="absolute -top-2 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                            <Crown className="w-4 h-4 text-amber-500 fill-amber-500" />
+                        </div>
+                    )}
                 </div>
 
+                {/* KHU VỰC THÔNG TIN */}
                 <div>
-                  <p className="font-bold text-gray-900 flex items-center gap-2">
-                    {item.guestName || item.user?.fullName || item.customerName || 'Khách vãng lai'}
-                    {isMyTicket && (
-                      <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">
-                        BẠN
-                      </span>
-                    )}
-                  </p>
+                  <div className="flex items-center gap-2 mb-1">
+                    {/* [MỚI] Số thứ tự chuyển thành Badge nhỏ */}
+                    <span className={`
+                        px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider
+                        ${isMyTicket ? 'bg-amber-500 text-white' : 'bg-black text-white'}
+                    `}>
+                        Vé #{item.ticketNumber}
+                    </span>
+
+                    <p className="font-bold text-gray-900 text-lg leading-none">
+                        {displayName}
+                    </p>
+                  </div>
                   
-                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
+                  <p className="text-xs text-gray-500 flex items-center gap-1.5 pl-0.5">
                     {isInProgress ? (
                       <>
-                        <Scissors className="w-4 h-4 text-indigo-600" />
+                        <Scissors className="w-3.5 h-3.5 text-indigo-600" />
                         <span className="font-medium text-indigo-900">
                           {isProcessing 
-                            ? 'Đang ngấm thuốc (Thợ chờ)' 
+                            ? 'Đang ngấm thuốc...' 
                             : item.barber 
-                              ? `Đang làm với ${item.barber.name}` 
-                              : 'Đang được phục vụ'
+                              ? `Đang làm: ${item.barber.name}` 
+                              : 'Đang phục vụ'
                           }
                         </span>
                       </>
                     ) : isOverdue ? (
                       <>
-                        <AlertCircle className="w-4 h-4 text-red-600" />
-                        <span className="text-red-600 font-bold">ĐÃ HỦY / BỎ QUA</span>
+                        <AlertCircle className="w-3.5 h-3.5 text-red-600" />
+                        <span className="text-red-600 font-bold">ĐÃ HỦY</span>
                       </>
                     ) : (
                       <>
-                        <Clock className="w-4 h-4 text-gray-500" />
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
                         Đang chờ...
                       </>
                     )}
                   </p>
                 </div>
               </div>
-              
-              {/* Icon status bên phải */}
-              <div>
+
+              {/* KHU VỰC ACTION / ICON TRẠNG THÁI (Bên phải) */}
+              <div className="flex items-center gap-2">
+                {showFinishButton && <CompleteTicketButton ticketId={item.id} />}
+                
                 {isProcessing && <Sparkles className="w-6 h-6 text-purple-500 animate-spin-slow" />}
-                {!isProcessing && isInProgress && <Scissors className="w-6 h-6 text-indigo-600 animate-bounce" />}
+                {!isProcessing && isInProgress && !showFinishButton && <Scissors className="w-6 h-6 text-indigo-600 animate-bounce" />}
                 {isOverdue && <AlertCircle className="w-6 h-6 text-red-600" />}
               </div>
             </div>
