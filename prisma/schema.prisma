@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ====================== ENUMS ======================
+
+enum Role {
+  USER
+  ADMIN
+  BARBER
+}
+
+enum TicketStatus {
+  WAITING       // 1. Đang xếp hàng (chưa tới lượt)
+  CALLING       // 2. Sắp tới lượt, đang gọi khách đến
+  SERVING       // 3. Thợ đang làm việc trực tiếp (Cắt, bôi thuốc...) -> THỢ BẬN
+  PROCESSING    // 4. Khách đang đợi ngấm thuốc (Async) -> THỢ RẢNH TAY
+  FINISHING     // 5. Xả thuốc/Sấy tạo kiểu (Sau khi ngấm xong) -> THỢ BẬN LẠI
+  COMPLETED     // 6. Xong dịch vụ, chờ thanh toán
+  PAID          // 7. Đã thanh toán -> Rời hàng đợi
+  CANCELLED     // 8. Khách hủy hoặc quán hủy
+  SKIPPED       // 9. Gọi mà không tới
+}
+
+enum PaymentMethod {
+  CASH
+  MOMO
+  ZALOPAY
+  BANK_TRANSFER // MB, Agribank...
+}
+
+enum FaceShape {
+  OVAL
+  ROUND
+  SQUARE
+  DIAMOND
+  HEART
+  OBLONG
+  TRIANGLE
+}
+
+// ====================== USER & AUTH ======================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique // Có thể null nếu đăng nhập bằng SĐT
+  phone         String    @unique
+  passwordHash  String
+  fullName      String
+  avatarUrl     String?
+  role          Role      @default(USER)
+  
+  // Thông tin vật lý (để AI gợi ý tốt hơn lần sau)
+  faceShape     FaceShape? 
+
+  tickets       QueueTicket[]     // Lịch sử cắt tóc
+  aiAnalyses    HairAnalysis[]    // Lịch sử dùng AI soi da/tóc
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ====================== SHOP SETTINGS (Cấu hình quán) ======================
+
+model ShopSetting {
+  id                String   @id @default("1") // Chỉ có 1 bản ghi
+  
+  // Thời gian mở cửa (làm cơ sở tính toán thời gian chờ)
+  morningOpen       String   @default("08:00")
+  morningClose      String   @default("11:00")
+  afternoonOpen     String   @default("13:30")
+  afternoonClose    String   @default("18:00")
+  
+  maxDailyTickets   Int      @default(50) // Giới hạn số khách trong ngày
+  isShopOpen        Boolean  @default(true) // Nút tắt/bật quán khẩn cấp
+
+  updatedAt         DateTime @updatedAt
+}
+
+// ====================== SERVICES (Dịch vụ) ======================
+
+model Service {
+  id            String   @id @default(cuid())
+  name          String   // Ví dụ: Cắt tóc nam, Uốn, Nhuộm
+  price         Int      // Giá tiền
+  
+  // Thời gian ước tính (phút)
+  durationWork  Int      // Thời gian thợ phải làm (cắt, bôi thuốc)
+  durationWait  Int      @default(0) // Thời gian chờ ngấm thuốc (dùng cho logic Async)
+  
+  // Ví dụ: 
+  // Cắt tóc: work=30, wait=0
+  // Uốn: work=20 (bôi thuốc), wait=45 (ngấm), work_finish=20 (xả/sấy - tính vào durationWork hoặc tách ra logic khác)
+  
+  isActive      Boolean  @default(true)
+  tickets       TicketService[] // Quan hệ n-n với vé
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ====================== QUEUE SYSTEM (Hàng đợi) ======================
+
+model Barber {
+  id            String   @id @default(cuid())
+  name          String
+  isActive      Boolean  @default(true) // Có đi làm hôm nay không
+  isBusy        Boolean  @default(false) // True nếu đang ở trạng thái SERVING hoặc FINISHING
+
+  tickets       QueueTicket[] // Các vé thợ này phục vụ
+}
+
+model QueueTicket {
+  id            String        @id @default(cuid())
+  ticketNumber  Int           // Số thứ tự trong ngày (1, 2, 3...)
+  date          DateTime      @default(dbgenerated("CURRENT_DATE")) // Ngày tạo vé
+  
+  // Khách hàng
+  userId        String?       // Null nếu là khách vãng lai không đăng ký
+  user          User?         @relation(fields: [userId], references: [id])
+  guestName     String?       // Tên khách nếu không login
+  guestPhone    String?       // SĐT khách để liên lạc
+
+  status        TicketStatus  @default(WAITING)
+
+  // Thợ phục vụ (Assign khi đến lượt)
+  barberId      String?
+  barber        Barber?       @relation(fields: [barberId], references: [id])
+
+  // Thời gian tính toán
+  joinedAt            DateTime  @default(now()) // Thời điểm lấy số
+  estimatedStartTime  DateTime? // Hệ thống tính toán báo cho khách
+  actualStartTime     DateTime? // Lúc thợ bắt đầu cắt
+  completedAt         DateTime? // Lúc xong hẳn
+  
+  // Thanh toán
+  totalPrice        Int       @default(0)
+  paymentMethod     PaymentMethod?
+  isPaid            Boolean   @default(false)
+
+  // Dịch vụ đã chọn
+  services      TicketService[]
+
+  @@unique([date, ticketNumber]) // Không trùng số trong ngày
+  @@index([date, status])
+}
+
+// Bảng trung gian để lưu dịch vụ cho từng vé (vì 1 người có thể vừa Cắt vừa Uốn)
+model TicketService {
+  id            String      @id @default(cuid())
+  ticketId      String
+  serviceId     String
+  
+  // Lưu giá tại thời điểm cắt (tránh việc sau này chủ quán tăng giá làm sai lệch doanh thu cũ)
+  priceSnapshot Int         
+
+  ticket        QueueTicket @relation(fields: [ticketId], references: [id])
+  service       Service     @relation(fields: [serviceId], references: [id])
+
+  @@unique([ticketId, serviceId])
+}
+
+// ====================== AI FEATURES (Gemini) ======================
+
+model HairAnalysis {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  
+  originalImageUrl String  // Ảnh gốc khách upload
+
+  // Kết quả phân tích từ Gemini (Lưu JSON cấu trúc để hiển thị UI đẹp)
+  // Cấu trúc JSON dự kiến:
+  // {
+  //   "faceShape": "DIAMOND",
+  //   "description": "Khuôn mặt kim cương với gò má cao...",
+  //   "suggestions": [
+  //      { "styleName": "Undercut", "reason": "...", "maintenance": "Dễ", "stylingTips": "..." },
+  //      { "styleName": "Side Part", ... }
+  //   ]
+  // }
+  analysisResult  Json     
+
+  // Các kiểu tóc khách đã chọn để xem thử (Image Generation)
+  generatedStyles GeneratedStyle[]
+
+  createdAt       DateTime @default(now())
+}
+
+model GeneratedStyle {
+  id              String       @id @default(cuid())
+  analysisId      String
+  analysis        HairAnalysis @relation(fields: [analysisId], references: [id])
+  
+  styleName       String       // Tên kiểu tóc (ví dụ: "Undercut")
+  generatedImageUrl String     // Ảnh Gemini trả về
+  
+  createdAt       DateTime     @default(now())
+}

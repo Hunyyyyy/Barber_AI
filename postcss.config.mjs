@@ -1,6 +1,9 @@
+// postcss.config.mjs
+/** @type {import('postcss').Postcss} */
 const config = {
   plugins: {
-    "@tailwindcss/postcss": {},
+    '@tailwindcss/postcss': {},  // ← Thay đổi ở đây
+    autoprefixer: {},
   },
 };
 
