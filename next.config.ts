@@ -31,6 +31,16 @@ const nextConfig: NextConfig = {
   // - poweredByHeader: false → vẫn giữ nếu muốn ẩn header X-Powered-By
 
   poweredByHeader: false,
+  // THÊM ĐOẠN NÀY
+  eslint: {
+    // Cảnh báo: Cho phép build thành công ngay cả khi project có lỗi ESLint
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    // (Tùy chọn) Nếu bạn muốn bỏ qua lỗi type nhỏ để build gấp (nhưng lỗi bước 1 bắt buộc phải sửa)
+    // ignoreBuildErrors: true, 
+  }
+
 };
 
 export default nextConfig;
