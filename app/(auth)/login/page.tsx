@@ -1,10 +1,10 @@
 "use client";
-
+export const dynamic = 'force-dynamic';
 import { loginAction, loginWithGoogle } from "@/actions/auth.actions";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useActionState } from "react";
+import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 // Component nút Submit để hiện loading state
 function SubmitButton() {
@@ -25,7 +25,7 @@ export default function LoginPage() {
   const [state, formAction] = useActionState(loginAction, null);
   const searchParams = useSearchParams();
   // Lấy URL cần quay lại sau khi login, mặc định là /try-hair
-  const redirectTo = searchParams.get("redirectedFrom") || "/home";
+  const redirectTo = searchParams.get("redirectedFrom") || "/try-hair";
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
@@ -35,11 +35,6 @@ export default function LoginPage() {
       </div>
 
       {/* Form đăng nhập */}
-      <Suspense fallback={
-        <div className="flex items-center gap-2">
-           <Loader2 className="animate-spin" /> Đang tải...
-        </div>
-      }>
       <form action={formAction} className="space-y-4">
         {/* Hidden field để truyền redirectTo xuống server action */}
         <input type="hidden" name="redirectTo" value={redirectTo} />
@@ -85,7 +80,7 @@ export default function LoginPage() {
           <SubmitButton />
         </div>
       </form>
-      </Suspense>
+
       {/* Divider */}
       <div className="relative my-6">
         <div className="absolute inset-0 flex items-center">
