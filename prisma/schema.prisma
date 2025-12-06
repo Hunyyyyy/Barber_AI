@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ====================== ENUMS ======================
@@ -58,7 +59,7 @@ model User {
   credits       Int      @default(0)
   // Thông tin vật lý (để AI gợi ý tốt hơn lần sau)
   faceShape     FaceShape? 
-
+  savedHairstyles    SavedHairstyle[]
   tickets       QueueTicket[]     // Lịch sử cắt tóc
   aiAnalyses    HairAnalysis[]    // Lịch sử dùng AI soi da/tóc
   barberProfile Barber?
@@ -141,6 +142,9 @@ model QueueTicket {
   actualStartTime     DateTime? // Lúc thợ bắt đầu cắt
   completedAt         DateTime? // Lúc xong hẳn
   
+  targetStyleId String?       
+  targetStyle   SavedHairstyle? @relation(fields: [targetStyleId], references: [id])
+
   // Thanh toán
   totalPrice        Int       @default(0)
   paymentMethod     PaymentMethod?
@@ -175,21 +179,11 @@ model HairAnalysis {
   userId          String
   user            User     @relation(fields: [userId], references: [id])
   
-  originalImageUrl String  // Ảnh gốc khách upload
+  originalImageUrl String
 
-  // Kết quả phân tích từ Gemini (Lưu JSON cấu trúc để hiển thị UI đẹp)
-  // Cấu trúc JSON dự kiến:
-  // {
-  //   "faceShape": "DIAMOND",
-  //   "description": "Khuôn mặt kim cương với gò má cao...",
-  //   "suggestions": [
-  //      { "styleName": "Undercut", "reason": "...", "maintenance": "Dễ", "stylingTips": "..." },
-  //      { "styleName": "Side Part", ... }
-  //   ]
-  // }
+  // Kết quả JSON từ Gemini
   analysisResult  Json     
 
-  // Các kiểu tóc khách đã chọn để xem thử (Image Generation)
   generatedStyles GeneratedStyle[]
 
   createdAt       DateTime @default(now())
@@ -200,10 +194,37 @@ model GeneratedStyle {
   analysisId      String
   analysis        HairAnalysis @relation(fields: [analysisId], references: [id])
   
-  styleName       String       // Tên kiểu tóc (ví dụ: "Undercut")
-  generatedImageUrl String     // Ảnh Gemini trả về
+  styleName       String       
+  
+  // [MỚI] Lưu thêm mô tả kỹ thuật (Prompt) để sau này chuyển sang SavedHairstyle
+  technicalDescription String? @db.Text 
+  
+  generatedImageUrl String     // Ảnh AI tạo ra
   
   createdAt       DateTime     @default(now())
+}
+// [MỚI] Bảng lưu kiểu tóc yêu thích (Bộ sưu tập của User)
+// Dữ liệu sẽ được copy từ GeneratedStyle sang đây khi người dùng bấm "Lưu vào bộ sưu tập"
+model SavedHairstyle {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id])
+
+  styleName           String   // Tên kiểu tóc (VD: Mohican chéo)
+  englishName         String?  // Tên tiếng Anh (VD: Textured Crop)
+  
+  // [QUAN TRỌNG] Chỉ lưu ảnh AI generate thành công (Không lưu ảnh Google)
+  imageUrl            String   
+  
+  // [QUAN TRỌNG] Hướng dẫn kỹ thuật cho thợ (Lấy từ prompt Gemini)
+  technicalDescription String? @db.Text 
+
+  // Dùng để thống kê (Kiểu tóc này đã được cắt bao nhiêu lần)
+  tickets             QueueTicket[]
+
+  createdAt           DateTime @default(now())
+  
+  @@index([styleName]) // Index để Admin thống kê kiểu tóc hot nhanh hơn
 }
 // [MỚI] Bảng lưu lịch sử giao dịch nạp tiền mua Credit
 model CreditTransaction {

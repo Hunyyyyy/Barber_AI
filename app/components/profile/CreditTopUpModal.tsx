@@ -1,5 +1,5 @@
 'use client';
-
+import { createTopUpOrder } from '@/actions/credit.actions'; // Import Server Action
 import { formatCurrency } from '@/lib/utils';
 import { Copy, X } from 'lucide-react';
 import { useState } from 'react';
@@ -25,21 +25,38 @@ const PACKAGES = [
 export default function CreditTopUpModal({ user, onClose }: Props) {
   const [step, setStep] = useState(1); // 1: Chọn gói, 2: Quét QR
   const [selectedPkg, setSelectedPkg] = useState<any>(null);
-  
+  const [isLoading, setIsLoading] = useState(false);
   // Giả lập mã giao dịch: NAP + Timestamp (Thực tế nên lấy ID từ DB)
   // Trong route.ts của bạn xử lý regex: /NAP\d+/i
-  const [transCode] = useState(`NAP${Math.floor(Date.now() / 1000)}`); 
+  const [transCode, setTransCode] = useState('');
 
   // URL QR Code
   const qrImgUrl = selectedPkg 
     ? `https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-${TEMPLATE}.png?amount=${selectedPkg.price}&addInfo=${transCode}&accountName=${encodeURIComponent(ACCOUNT_NAME)}`
     : '';
 
-  const handleSelectPackage = (pkg: any) => {
-    setSelectedPkg(pkg);
-    // TODO: Tại đây nên gọi Server Action để tạo bản ghi 'CreditTransaction' với status 'PENDING'
-    // await createCreditTransaction({ amount: pkg.price, credits: pkg.credits, code: transCode });
-    setStep(2);
+  const handleSelectPackage = async (pkg: any) => {
+    try {
+        setIsLoading(true);
+        setSelectedPkg(pkg);
+
+        // 1. Gọi Server Action để tạo đơn trong DB (Status: PENDING)
+        const res = await createTopUpOrder(pkg.price, pkg.credits);
+
+        if (res.success && res.order) {
+            // 2. Lấy mã code thực tế từ server (VD: NAP17123...)
+            setTransCode(res.order.code);
+            // 3. Chuyển sang bước quét mã
+            setStep(2);
+        } else {
+            alert("Lỗi tạo đơn nạp, vui lòng thử lại!");
+        }
+    } catch (error) {
+        console.error(error);
+        alert("Lỗi kết nối!");
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (

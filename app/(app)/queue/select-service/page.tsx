@@ -57,7 +57,8 @@ export default function SelectServicePage() {
 
       // 3. Kiểm tra kết quả
       if (!res.success) {
-        throw new Error(res.error || 'Đặt số thất bại');
+        alert(`${res.error}`);
+        return;
       }
 
       // 4. Thành công

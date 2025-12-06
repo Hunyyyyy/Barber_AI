@@ -318,7 +318,7 @@ export async function fetchQueuePageData() {
         ['WAITING', 'CALLING'].includes(t.status) && t.ticketNumber < myTicket.ticketNumber
       ).length;
     }
-
+console.log("Fetch Queue Data Success,data:", user);
     // 5. Trả về cấu trúc thống nhất
     return {
       success: true,
@@ -327,14 +327,14 @@ export async function fetchQueuePageData() {
         myTicket: myTicket ? { ...myTicket, position: myPosition } : null,
         estimatedWaitTime,
         currentUser: user ? { 
-          name: user.user_metadata?.name || 'Bạn',
+          name: user.user_metadata?.full_name || 'Bạn',
           phone: user.user_metadata?.phone || null,
           id: user.id,
           role: await getCurrentUserRole()
         } : null
       }
     };
-
+    
   } catch (error) {
     console.error("Fetch Queue Data Error:", error);
     return { success: false, error: 'Lỗi tải dữ liệu hàng đợi' };
@@ -504,9 +504,19 @@ export async function createQueueTicket(prevState: any, formData: FormData) {
     return { success: true, ticket: result };
 
   } catch (error: any) {
-    console.error("Create Ticket Error:", error);
-    return { success: false, error: error.message || 'Lỗi khi tạo vé' };
+  // 1. Log lỗi chi tiết ra server để dev debug
+  console.error("[SERVER ERROR] Create Ticket in queue.action:", error);
+
+  // 2. Kiểm tra nếu là lỗi logic do mình tự throw (Ví dụ: "Cửa hàng đóng cửa")
+  // Bạn cần đảm bảo các lỗi logic tự throw không chứa thông tin nhạy cảm
+  if (error.message === 'Cửa hàng hiện đang đóng cửa, vui lòng quay lại sau!' || 
+      error.message === 'Vui lòng chọn ít nhất một dịch vụ') {
+      return { success: false, error: error.message };
   }
+
+  // 3. Với mọi lỗi khác (DB connection, Prisma error...), trả về thông báo chung
+  return { success: false, error: 'Hệ thống đang bận, vui lòng thử lại sau.' };
+}
 }
 
 /**

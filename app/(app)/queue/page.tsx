@@ -45,12 +45,12 @@ export default function QueueHomePage() {
   const queue = data?.queue || [];
   const myTicket = data?.myTicket;
   const currentUser = data?.currentUser;
+  console.log('QueueHomePage - currentUser:', currentUser);
   const estimatedTime = data?.estimatedWaitTime || 15;
 
   const hasTicket = !!myTicket;
   const userName = currentUser?.name || 'Khách';
   const userRole = currentUser?.role || null;
-  console.log('QueueHomePage - userRole:', userRole);
   const waitingCount = queue.filter(q => ['WAITING', 'ASYNC_WAIT', 'CALLING'].includes(q.status)).length;
 
   // Logic check status đang làm
@@ -85,72 +85,83 @@ export default function QueueHomePage() {
 
               {/* LOGIC NÚT / THẺ VÉ */}
               {!hasTicket ? (
-                <Link href="/queue/select-service">
-                  <button className="w-full bg-black text-white py-6 rounded-2xl font-bold text-xl shadow-2xl hover:bg-gray-900 transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-4 group">
-                    <span>LẤY SỐ NGAY</span>
-                    <svg className="w-6 h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                    </svg>
+                // [MỚI] Kiểm tra quyền: Nếu là ADMIN hoặc BARBER thì vô hiệu hóa
+                (userRole === 'ADMIN' || userRole === 'BARBER') ? (
+                  <button 
+                    disabled
+                    className="w-full bg-gray-200 text-gray-400 py-6 rounded-2xl font-bold text-xl cursor-not-allowed flex items-center justify-center gap-4 border border-gray-300"
+                  >
+                    <span>BẠN LÀ QUẢN TRỊ VIÊN/THỢ</span>
+                    <Scissors className="w-6 h-6 opacity-50" />
                   </button>
-                </Link>
+                ) : (
+                  // Nút Lấy số bình thường cho khách (USER)
+                  <Link href="/queue/select-service">
+                    <button className="cursor-pointer w-full bg-black text-white py-6 rounded-2xl font-bold text-xl shadow-2xl hover:bg-gray-900 transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-4 group">
+                      <span>LẤY SỐ NGAY</span>
+                      <svg className="w-6 h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </Link>
+                )
               ) : (
                 <Link href="/queue/my-ticket">
-                  {/* Điều kiện Render giao diện dựa trên trạng thái */}
+                  {/* ... (Giữ nguyên phần hiển thị vé đã có) ... */}
                   <div className={`
                     border-2 p-8 rounded-2xl cursor-pointer hover:shadow-2xl transition-all group text-center relative overflow-hidden
                     ${isServing 
-                      ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200' // Style khi đang cắt
-                      : 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' // Style khi đang chờ
+                      ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200' 
+                      : 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
                     }
                   `}>
+                    {/* ... Nội dung bên trong thẻ vé giữ nguyên ... */}
                     <div className={`
-                      absolute top-0 right-0 text-xs font-bold px-3 py-1 rounded-bl-xl
-                      ${isServing ? 'bg-blue-200 text-blue-800' : 'bg-green-200 text-green-800'}
-                    `}>
-                      {isServing ? 'ĐANG THỰC HIỆN' : 'ĐANG XẾP HÀNG'}
-                    </div>
-
-                    <p className={`${isServing ? 'text-blue-800' : 'text-green-800'} font-bold text-2xl`}>
-                      Vé của bạn
-                    </p>
-                    <p className={`${isServing ? 'text-blue-700' : 'text-green-700'} text-7xl font-black mt-4 tracking-tighter`}>
-                      #{myTicket.ticketNumber?.toString().padStart(2, '0')}
-                    </p>
-                    
-                    {/* Logic text bên dưới */}
-                    {isServing ? (
-                      <div className="mt-3 flex flex-col items-center justify-center text-blue-600 animate-pulse">
-                        {isProcessing ? (
-                          <>
-                             <Sparkles className="w-6 h-6 mb-1"/>
-                             <span className="font-bold text-lg">Đang ngấm thuốc</span>
-                          </>
-                        ) : (
-                          <>
-                             <Scissors className="w-6 h-6 mb-1"/>
-                             <span className="font-bold text-lg">Đang cắt tóc</span>
-                          </>
-                        )}
+                        absolute top-0 right-0 text-xs font-bold px-3 py-1 rounded-bl-xl
+                        ${isServing ? 'bg-blue-200 text-blue-800' : 'bg-green-200 text-green-800'}
+                      `}>
+                        {isServing ? 'ĐANG THỰC HIỆN' : 'ĐANG XẾP HÀNG'}
                       </div>
-                    ) : (
-                      // Logic cũ cho trạng thái WAITING
-                      myTicket.position > 0 ? (
-                        <p className="text-green-600 text-lg mt-3">
-                          Còn <span className="font-black text-xl">{myTicket.position}</span> người nữa
-                        </p>
-                      ) : (
-                        <p className="text-green-600 text-lg mt-3 font-bold animate-pulse">
-                          Sắp đến lượt bạn rồi!
-                        </p>
-                      )
-                    )}
 
-                    <div className={`mt-6 flex items-center justify-center gap-2 font-medium ${isServing ? 'text-blue-700' : 'text-green-700'}`}>
-                      Xem chi tiết
-                      <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                      </svg>
-                    </div>
+                      <p className={`${isServing ? 'text-blue-800' : 'text-green-800'} font-bold text-2xl`}>
+                        Vé của bạn
+                      </p>
+                      <p className={`${isServing ? 'text-blue-700' : 'text-green-700'} text-7xl font-black mt-4 tracking-tighter`}>
+                        #{myTicket.ticketNumber?.toString().padStart(2, '0')}
+                      </p>
+                      
+                      {isServing ? (
+                        <div className="mt-3 flex flex-col items-center justify-center text-blue-600 animate-pulse">
+                          {isProcessing ? (
+                            <>
+                                <Sparkles className="w-6 h-6 mb-1"/>
+                                <span className="font-bold text-lg">Đang ngấm thuốc</span>
+                            </>
+                          ) : (
+                            <>
+                                <Scissors className="w-6 h-6 mb-1"/>
+                                <span className="font-bold text-lg">Đang cắt tóc</span>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        myTicket.position > 0 ? (
+                          <p className="text-green-600 text-lg mt-3">
+                            Còn <span className="font-black text-xl">{myTicket.position}</span> người nữa
+                          </p>
+                        ) : (
+                          <p className="text-green-600 text-lg mt-3 font-bold animate-pulse">
+                            Sắp đến lượt bạn rồi!
+                          </p>
+                        )
+                      )}
+
+                      <div className={`mt-6 flex items-center justify-center gap-2 font-medium ${isServing ? 'text-blue-700' : 'text-green-700'}`}>
+                        Xem chi tiết
+                        <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                        </svg>
+                      </div>
                   </div>
                 </Link>
               )}

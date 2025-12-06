@@ -12,21 +12,24 @@ export default function AdminSettingsPage() {
   // state: kết quả trả về từ server action (success/error)
   // isPending: trạng thái đang gửi dữ liệu
   const [state, formAction, isPending] = useActionState(updateShopSettings, null);
-
+  const loadSettings = async () => {
+    setLoading(true);
+    const data = await getShopSettings();
+    setSettings(data);
+    setLoading(false);
+  };
   // Lấy dữ liệu ban đầu
   useEffect(() => {
-    getShopSettings().then(data => {
-      setSettings(data);
-      setLoading(false);
-    });
+    loadSettings();
   }, []);
-
   // Tự động ẩn thông báo success sau 3 giây (Option)
   useEffect(() => {
     if (state?.success) {
-      // Bạn có thể dùng toast ở đây nếu muốn: toast.success('Cập nhật thành công')
+      loadSettings(); // <-- GỌI LẠI HÀM NÀY ĐỂ CẬP NHẬT `settings` STATE!
+      
+      // Tùy chọn: Sau 3 giây, bạn có thể tắt trạng thái loading thành công nếu muốn
       const timer = setTimeout(() => {
-        // Logic clear state nếu cần, nhưng với useActionState thường ta để nguyên UI
+        // [Tùy chọn] Có thể dùng một state khác để quản lý thông báo, ví dụ: setSuccessMessage(null)
       }, 3000);
       return () => clearTimeout(timer);
     }
@@ -67,19 +70,19 @@ export default function AdminSettingsPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-500 mb-1">Sáng - Mở</label>
-              <input type="time" name="morningOpen" defaultValue={settings?.morningOpen} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" />
+              <input key={settings?.morningOpen} type="time" name="morningOpen" defaultValue={settings?.morningOpen} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" />
             </div>
             <div>
               <label className="block text-sm text-gray-500 mb-1">Sáng - Đóng</label>
-              <input type="time" name="morningClose" defaultValue={settings?.morningClose} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" />
+              <input key={settings?.morningOpen} type="time" name="morningClose" defaultValue={settings?.morningClose} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" />
             </div>
             <div>
               <label className="block text-sm text-gray-500 mb-1">Chiều - Mở</label>
-              <input type="time" name="afternoonOpen" defaultValue={settings?.afternoonOpen} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" />
+              <input key={settings?.morningOpen} type="time" name="afternoonOpen" defaultValue={settings?.afternoonOpen} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" />
             </div>
             <div>
               <label className="block text-sm text-gray-500 mb-1">Chiều - Đóng</label>
-              <input type="time" name="afternoonClose" defaultValue={settings?.afternoonClose} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" />
+              <input key={settings?.morningOpen} type="time" name="afternoonClose" defaultValue={settings?.afternoonClose} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" />
             </div>
           </div>
         </div>
@@ -93,7 +96,7 @@ export default function AdminSettingsPage() {
           </h3>
           <div>
             <label className="block text-sm text-gray-500 mb-1">Số khách tối đa / ngày</label>
-            <input type="number" name="maxDailyTickets" defaultValue={settings?.maxDailyTickets} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" />
+            <input key={settings?.morningOpen} type="number" name="maxDailyTickets" defaultValue={settings?.maxDailyTickets} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" />
           </div>
         </div>
 
@@ -103,7 +106,7 @@ export default function AdminSettingsPage() {
         <div className="flex items-center justify-between">
           <span className="font-semibold text-gray-800">Trạng thái Cửa hàng</span>
           <label className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" name="isShopOpen" defaultChecked={settings?.isShopOpen} className="sr-only peer" />
+            <input key={settings?.morningOpen} type="checkbox" name="isShopOpen" defaultChecked={settings?.isShopOpen} className="sr-only peer" />
             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
             <span className="ml-3 text-sm font-medium text-gray-900">Đang mở cửa</span>
           </label>

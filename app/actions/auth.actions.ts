@@ -20,6 +20,7 @@ export async function registerAction(prevState: any, formData: FormData) {
         phone: formData.get('phone'),
         password: formData.get('password'),
     });
+ 
 
     if (!validated.success) {
         return {
@@ -66,7 +67,8 @@ export async function registerAction(prevState: any, formData: FormData) {
     });
 
     if (error) {
-        return { success: false, formError: error.message };
+        console.error('Lỗi đăng ký Supabase Auth:', error.message);
+        return { success: false, formError: "Có lỗi xảy ra trong lúc đăng ký!" };
     }
 
     // Check user identities (Giữ nguyên)
@@ -135,6 +137,7 @@ export async function loginAction(prevState: any, formData: FormData) {
   });
 
   if (error) {
+    console.error('Lỗi đăng nhập Supabase Auth:', error.message);
     return { error: { message: 'Email hoặc mật khẩu không đúng' } };
   }
   // Lấy thông tin user từ DB để check role chính xác nhất

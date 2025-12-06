@@ -10,7 +10,7 @@ const navItems = [
   { href: "/home", label: "Trang chủ" },
   { href: "/try-hair", label: "Phân tích kiểu tóc phù hợp" },
   { href: "/queue", label: "Đặt lịch" },
-  { href: "/about", label: "About" },
+  { href: "/history", label: "Lịch sử & bộ sưu tập" },
 ] as const;
 
 function LogoutButton({
@@ -63,7 +63,7 @@ export default function ClientHeader({ serverUser }: { serverUser: any }) {
   // Dùng thẳng serverUser → luôn đồng bộ với server, không cần state riêng
   const isLoggedIn = !!serverUser;
   // Lấy tên từ metadata, nếu không có thì fallback về email hoặc "Khách"
-  const userName = serverUser?.user_metadata?.name || serverUser?.email?.split('@')[0] || "Khách";
+  const userName = serverUser?.user_metadata?.full_name || serverUser?.email?.split('@')[0] || "Khách";
   const role = serverUser?.user_metadata?.role || "USER";
   const avatarUrl = serverUser?.user_metadata?.avatar_url;
   // Lấy chữ cái đầu để làm Avatar

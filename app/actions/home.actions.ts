@@ -43,8 +43,8 @@ export async function getHomePageData() {
 
     // Format lại dữ liệu trả về
     return {
-      shopName: "Barber Shop PRO", // Tên quán (Có thể lưu trong DB hoặc hardcode)
-      address: "123 Đường Cắt Tóc, Quận 1, TP.HCM", // Địa chỉ giả lập
+      shopName: "Dai Barber Shop PRO", // Tên quán (Có thể lưu trong DB hoặc hardcode)
+      address: "Hòa Tiến, Hòa Vang, Đà Nẵng, Việt Nam", // Địa chỉ giả lập
       settings: settings || {
         morningOpen: '08:00', morningClose: '12:00',
         afternoonOpen: '13:30', afternoonClose: '18:00',

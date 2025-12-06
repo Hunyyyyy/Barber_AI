@@ -6,10 +6,11 @@ interface CurrentQueueListProps {
   queue: any[]; // Dùng any tạm hoặc type chính xác từ Prisma include
   highlightTicketId?: string; // <-- Đổi thành ID
   currentUserRole?: string | null;
+  currentUserId?: string;
 }
 
 export default function CurrentQueueList({ 
-  queue, highlightTicketId,currentUserRole }: CurrentQueueListProps) { 
+  queue, highlightTicketId,currentUserRole,currentUserId }: CurrentQueueListProps) { 
     console.log('CurrentQueueList - currentUserRole:', currentUserRole);
    if (queue.length === 0) {
     return (
@@ -38,12 +39,16 @@ export default function CurrentQueueList({
           // Logic so sánh ID
           const isMyTicket = highlightTicketId && item.id === highlightTicketId;
           const isInProgress = ['SERVING', 'FINISHING', 'PROCESSING', 'CALLING'].includes(item.status);
-          const showFinishButton = currentUserRole === 'BARBER' && 
-                                   ['SERVING', 'FINISHING'].includes(item.status);
+          const isAssignedBarber = item.barber?.userId === currentUserId;
+          const showFinishButton = (currentUserRole === 'BARBER' || currentUserRole === 'ADMIN') && 
+                                   ['SERVING', 'FINISHING'].includes(item.status) &&
+                                   isAssignedBarber;
           // Trạng thái chờ xử lý thuốc (Ngấm thuốc) -> Thợ rảnh tay nhưng khách chưa xong
           const isProcessing = item.status === 'PROCESSING';
           
           const isOverdue = item.status === 'SKIPPED' || item.status === 'CANCELLED';
+
+          
           // Lấy thông tin Avatar & Tên
           const avatarUrl = item.user?.avatarUrl;
           const displayName = item.guestName || item.user?.fullName || 'Khách vãng lai';
@@ -131,9 +136,11 @@ export default function CurrentQueueList({
 
               {/* KHU VỰC ACTION / ICON TRẠNG THÁI (Bên phải) */}
               <div className="flex items-center gap-2">
+                {/* Chỉ hiện nút khi thỏa mãn điều kiện showFinishButton */}
                 {showFinishButton && <CompleteTicketButton ticketId={item.id} />}
                 
                 {isProcessing && <Sparkles className="w-6 h-6 text-purple-500 animate-spin-slow" />}
+                {/* Nếu đang cắt mà không phải thợ của mình (không hiện nút) thì hiện icon cái kéo nhảy */}
                 {!isProcessing && isInProgress && !showFinishButton && <Scissors className="w-6 h-6 text-indigo-600 animate-bounce" />}
                 {isOverdue && <AlertCircle className="w-6 h-6 text-red-600" />}
               </div>

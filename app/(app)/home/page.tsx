@@ -41,13 +41,13 @@ export default async function HomePage() {
 
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
             <Link href="/queue">
-              <button className="w-full sm:w-auto px-8 py-4 bg-white text-black rounded-2xl font-bold text-lg hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
+              <button className="cursor-pointer w-full sm:w-auto px-8 py-4 bg-white text-black rounded-2xl font-bold text-lg hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
                 <CalendarDays className="w-5 h-5" />
                 Lấy Số Ngay
               </button>
             </Link>
             <Link href="#services">
-              <button className="w-full sm:w-auto px-8 py-4 bg-white/10 backdrop-blur text-white border border-white/20 rounded-2xl font-bold text-lg hover:bg-white/20 transition-all">
+              <button className=" cursor-pointer w-full sm:w-auto px-8 py-4 bg-white/10 backdrop-blur text-white border border-white/20 rounded-2xl font-bold text-lg hover:bg-white/20 transition-all">
                 Xem Bảng Giá
               </button>
             </Link>

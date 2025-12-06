@@ -1,5 +1,6 @@
 "use client";
 
+import { saveAnalysisResult } from "@/actions/save_try_hair.actions";
 import HairstyleDetailModal from "@/components/hairstyle/HairstyleCard"; // Đảm bảo component này render modal chi tiết
 import TryOnModal from "@/components/hairstyle/TryOnModal";
 import { createClient } from "@/lib/supabase/client"; // Supabase Client
@@ -30,6 +31,8 @@ export default function SuggestPage() {
   // State quản lý Modals
   const [selectedHairstyle, setSelectedHairstyle] = useState<Hairstyle | null>(null); // Để xem chi tiết text
   const [selectedTryOn, setSelectedTryOn] = useState<Hairstyle | null>(null); // Để mở modal AI Generate
+
+  const [analysisId, setAnalysisId] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +111,13 @@ export default function SuggestPage() {
       
       setGeneralAdvice(data.general_advice);
       setHairstyles(data.hairstyles || []);
+      // 2. [MỚI] Lưu kết quả phân tích vào Database (Chạy ngầm không cần await UI)
+      saveAnalysisResult(image, data).then(result => {
+          if (result.success && result.analysisId) {
+              setAnalysisId(result.analysisId);
+              console.log("Analysis Saved:", result.analysisId);
+          }
+      });
       setStep("result");
     } catch (err: any) {
       setError(err.message || "Có lỗi xảy ra");
@@ -198,14 +208,11 @@ export default function SuggestPage() {
                     </button>
                 </div>
 
-                {/* Grid Hairstyle */}
                 <div className="grid grid-cols-1 gap-6">
                     {hairstyles.map((hair, idx) => (
                         <div key={idx} className="bg-white rounded-3xl border border-neutral-100 shadow-lg overflow-hidden flex flex-col md:flex-row hover:border-black transition duration-300 group">
-                            {/* Visual Placeholder */}
                             <div className="bg-neutral-100 md:w-1/3 aspect-video md:aspect-[3/4] relative flex items-center justify-center">
                                 <span className="text-8xl font-black text-neutral-200 opacity-50 absolute">0{idx + 1}</span>
-                                {/* Nút Thử Ngay Nổi Bật trên Ảnh */}
                                 <button 
                                     onClick={() => setSelectedTryOn(hair)}
                                     className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-xl flex items-center gap-2 hover:scale-105 transition active:scale-95 cursor-pointer"
@@ -214,7 +221,6 @@ export default function SuggestPage() {
                                 </button>
                             </div>
                             
-                            {/* Content */}
                             <div className="p-6 md:w-2/3 flex flex-col justify-between">
                                 <div>
                                     <h3 className="text-xl font-bold mb-1">{hair.name}</h3>
@@ -390,6 +396,7 @@ export default function SuggestPage() {
             originalImage={image}
             generalAdvice={generalAdvice}
             onClose={() => setSelectedTryOn(null)}
+            analysisId={analysisId} 
           />
         )}
 

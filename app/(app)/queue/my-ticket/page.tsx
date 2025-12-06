@@ -4,11 +4,15 @@
 import { cancelQueueTicket, getMyLatestTicket } from '@/actions/queue.actions';
 import PaymentModal from '@/components/queue/PaymentModal';
 import QueueTicket from '@/components/queue/QueueTicket';
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock, CreditCard, Scissors, Sparkles } from 'lucide-react';
+import {
+  AlertCircle, ArrowLeft, CheckCircle2, Clock,
+  CreditCard, Info, MapPin, Phone, Scissors, Sparkles
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-const AVG_SERVICE_MINUTES = 25; // Thời gian ước tính mỗi khách
+
+const AVG_SERVICE_MINUTES = 25; 
 
 export default function MyTicketPage() {
   const router = useRouter();
@@ -16,13 +20,13 @@ export default function MyTicketPage() {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
-  // Hàm fetch dữ liệu
+
+  // ... (Giữ nguyên logic fetchTicket và handleCancel như cũ) ...
   const fetchTicket = async () => {
     try {
       const res = await getMyLatestTicket();
       if (res.success) {
         setTicket(res.ticket);
-        // Nếu vé đã thanh toán (isPaid = true), tự động đóng modal nếu đang mở
         if (res.ticket?.isPaid && showPayment) {
             setShowPayment(false);
         }
@@ -36,24 +40,18 @@ export default function MyTicketPage() {
 
   useEffect(() => {
     fetchTicket();
-    const interval = setInterval(fetchTicket, 5000); // Polling nhanh hơn (5s) để bắt trạng thái thanh toán
+    const interval = setInterval(fetchTicket, 5000); 
     return () => clearInterval(interval);
   }, []);
 
-  // --- Logic xử lý Hủy vé ---
   const handleCancel = async () => {
     if (!ticket) return;
-    const confirmCancel = confirm(`Bạn có chắc chắn muốn hủy số thứ tự #${ticket.ticketNumber} không?`);
-    
-    if (confirmCancel) {
+    if (confirm(`Bạn có chắc chắn muốn hủy số thứ tự #${ticket.ticketNumber} không?`)) {
       setCancelling(true);
       try {
         const res = await cancelQueueTicket(ticket.id);
-        if (res.success) {
-          router.push('/queue'); 
-        } else {
-          alert(res.error || 'Lỗi khi hủy vé');
-        }
+        if (res.success) router.push('/queue'); 
+        else alert(res.error || 'Lỗi khi hủy vé');
       } catch (err) {
         alert('Có lỗi xảy ra');
       } finally {
@@ -62,165 +60,187 @@ export default function MyTicketPage() {
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="w-10 h-10 border-4 border-gray-300 border-t-black rounded-full animate-spin"></div></div>;
-
-  if (!ticket) return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 space-y-4">
-            <p className="text-xl text-gray-600">Bạn hiện không có vé nào đang chờ.</p>
-            <Link href="/queue" className="px-6 py-3 bg-black text-white rounded-xl font-bold hover:scale-105 transition-transform">Lấy số ngay</Link>
-        </div>
+  // --- Màn hình Loading ---
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 gap-4">
+        <div className="w-12 h-12 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+        <p className="text-gray-500 font-medium animate-pulse">Đang tải vé của bạn...</p>
+    </div>
   );
 
-  // --- Logic hiển thị ---
+  // --- Màn hình Không có vé ---
+  if (!ticket) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 text-center">
+        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+            <Scissors className="w-10 h-10 text-gray-400" />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Chưa có vé nào</h2>
+        <p className="text-gray-500 mb-8 max-w-xs">Bạn hiện không có vé đang chờ. Hãy lấy số mới để được phục vụ nhé.</p>
+        <Link href="/queue" className="px-8 py-4 bg-black text-white rounded-2xl font-bold hover:bg-gray-800 hover:scale-105 transition-all shadow-xl">
+            Lấy số ngay
+        </Link>
+    </div>
+  );
+
+  // --- Logic hiển thị trạng thái ---
   const currentPosition = ticket.position ?? 0;
   const status = ticket.status;
   const isServing = ['SERVING', 'FINISHING', 'IN_PROGRESS'].includes(status);
   const isProcessing = status === 'PROCESSING';
   const isCalling = status === 'CALLING';
   const isWaiting = status === 'WAITING';
-
   const canPay = !ticket.isPaid && ticket.totalPrice > 0;
-  // Tính thời gian chờ (Chỉ hiển thị con số khi đang đợi)
-  const estimatedWaitMinutes = currentPosition > 0 ? currentPosition * AVG_SERVICE_MINUTES + 5 : 5;
-  let estimatedTimeMessage = `Khoảng ${estimatedWaitMinutes} phút`;
-  if (isServing || isProcessing) estimatedTimeMessage = 'Đang thực hiện';
-  else if (isCalling) estimatedTimeMessage = 'Vui lòng đến quầy';
 
-  let StatusIcon = AlertCircle;
-  let statusMessage = 'Đang chờ đến lượt của bạn.';
-  let statusColorClass = 'bg-indigo-50/50 text-indigo-800 border-indigo-200 border';
+  const estimatedWaitMinutes = currentPosition > 0 ? currentPosition * AVG_SERVICE_MINUTES + 5 : 5;
+  let timeDisplay = `${estimatedWaitMinutes} phút`;
+  let statusText = 'Đang xếp hàng';
+  let statusDesc = `Còn ${currentPosition} người nữa là đến lượt bạn.`;
+  let StatusIcon = Clock;
+  let themeColor = 'blue'; 
 
   if (isServing) {
+    statusText = 'Đang phục vụ';
+    statusDesc = 'Thợ đang thực hiện dịch vụ cho bạn.';
     StatusIcon = Scissors;
-    statusMessage = 'THỢ ĐANG THỰC HIỆN DỊCH VỤ!';
-    statusColorClass = 'bg-blue-600 text-white shadow-lg shadow-blue-200';
+    themeColor = 'green';
+    timeDisplay = 'Bây giờ';
   } else if (isProcessing) {
+    statusText = 'Đang xử lý';
+    statusDesc = 'Vui lòng ngồi đợi thuốc ngấm.';
     StatusIcon = Sparkles;
-    statusMessage = 'ĐANG NGẤM THUỐC / CHỜ XỬ LÝ';
-    statusColorClass = 'bg-purple-600 text-white shadow-lg shadow-purple-200';
+    themeColor = 'purple';
+    timeDisplay = 'Đang làm';
   } else if (isCalling) {
+    statusText = 'Đang gọi!';
+    statusDesc = 'Vui lòng đến quầy ngay lập tức.';
     StatusIcon = AlertCircle;
-    statusMessage = 'ĐANG GỌI! Vui lòng đến ngay quầy.';
-    statusColorClass = 'bg-yellow-500 text-white shadow-lg shadow-yellow-200 animate-pulse';
+    themeColor = 'yellow';
+    timeDisplay = 'Ngay lập tức';
   } else if (status === 'FINISHING') {
+    statusText = 'Hoàn thiện';
+    statusDesc = 'Sấy tóc và tạo kiểu.';
     StatusIcon = CheckCircle2;
-    statusMessage = 'ĐANG HOÀN THIỆN / SẤY TÓC';
-    statusColorClass = 'bg-teal-600 text-white shadow-lg shadow-teal-200';
+    themeColor = 'teal';
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-          
-          {/* Header */}
-          <div className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
-            <div className="px-6 py-6 flex justify-between items-center">
-              <Link href="/queue" className="flex items-center gap-2 text-gray-600 hover:text-black transition">
+    <div className="min-h-screen bg-gray-100 pb-12">
+      {/* --- HEADER --- */}
+      <header className="bg-white sticky top-0 z-30 border-b border-gray-200/50 backdrop-blur-md bg-white/80">
+        <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between">
+            <Link href="/queue" className="flex items-center gap-2 text-gray-600 hover:text-black transition p-2 -ml-2 rounded-lg hover:bg-gray-100">
                 <ArrowLeft className="w-5 h-5" />
-                <span className="font-semibold text-sm hidden sm:inline">Quay lại hàng đợi</span>
-              </Link>
-              
-              {/* Chỉ hiện nút Hủy khi đang đợi hoặc đang gọi (chưa làm) */}
-              {(isWaiting || isCalling) && (
-                <button
-                  onClick={handleCancel}
-                  disabled={cancelling}
-                  className="text-red-500 hover:text-red-700 font-medium text-sm transition disabled:opacity-50"
-                >
-                  {cancelling ? 'Đang hủy...' : 'Hủy số thứ tự'}
-                </button>
-              )}
-            </div>
-          </div>
+                <span className="font-semibold text-sm">Quay lại</span>
+            </Link>
+            <h1 className="font-bold text-gray-900">Vé điện tử</h1>
+            <div className="w-8"></div> {/* Spacer để cân giữa */}
+        </div>
+      </header>
 
-          {/* Nội dung chính */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 p-8 lg:p-12">
-            
-            {/* Cột trái: Thông tin & Vé */}
-            <div className="lg:col-span-2 space-y-10">
-              
-              {/* Alert Status Banner */}
-              <div className={`p-6 rounded-2xl transition-all duration-500 flex items-center gap-4 ${statusColorClass}`}>
-                <StatusIcon className="w-8 h-8 flex-shrink-0" />
+      <main className="max-w-2xl mx-auto px-4 pt-6 space-y-6">
+        
+        {/* 1. STATUS CARD (Thông báo trạng thái) */}
+        <div className={`
+            relative overflow-hidden rounded-3xl p-6 shadow-sm border
+            ${themeColor === 'green' ? 'bg-green-600 border-green-500 text-white' : ''}
+            ${themeColor === 'yellow' ? 'bg-yellow-500 border-yellow-400 text-white' : ''}
+            ${themeColor === 'purple' ? 'bg-purple-600 border-purple-500 text-white' : ''}
+            ${themeColor === 'blue' ? 'bg-white border-gray-200 text-gray-900' : ''}
+        `}>
+            {/* Background Pattern cho trạng thái Waiting (Blue) */}
+            {themeColor === 'blue' && (
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+            )}
+
+            <div className="relative z-10 flex items-start gap-4">
+                <div className={`
+                    p-3 rounded-2xl shrink-0
+                    ${themeColor === 'blue' ? 'bg-blue-50 text-blue-600' : 'bg-white/20 text-white'}
+                `}>
+                    <StatusIcon className="w-8 h-8" />
+                </div>
                 <div>
-                  <h2 className="text-xl font-bold leading-tight uppercase">{statusMessage}</h2>
-                  {isWaiting && (
-                    <p className="text-sm opacity-90 mt-1">
-                      Còn <strong className="text-lg">{currentPosition}</strong> người nữa là đến bạn.
+                    <h2 className="text-xl font-bold leading-tight">{statusText}</h2>
+                    <p className={`mt-1 text-sm ${themeColor === 'blue' ? 'text-gray-500' : 'text-white/90'}`}>
+                        {statusDesc}
                     </p>
-                  )}
-                  {isServing && <p className="text-sm opacity-90 mt-1">Hãy thư giãn và tận hưởng dịch vụ.</p>}
-                </div>
-              </div>
-
-              {/* Component Vé */}
-              <div className="scale-105 origin-top">
-                <QueueTicket 
-                  queueNumber={ticket.ticketNumber}
-                  customerName={ticket.guestName || ticket.customerName || 'Bạn'}
-                  // Truyền serviceNames để hiển thị tên đẹp (vì serviceIds có thể là UUID)
-                  services={ticket.serviceNames || ticket.serviceIds || []} 
-                  estimatedTime={estimatedTimeMessage}
-                  position={currentPosition}
-                  status={status}
-                  onCancel={handleCancel}
-                />
-              </div>
-                  {/* NÚT THANH TOÁN - CHỈ HIỆN KHI CẦN THANH TOÁN */}
-              {canPay && (
-                <div className="animate-in slide-in-from-bottom-4 fade-in duration-500">
-                    <button 
-                        onClick={() => setShowPayment(true)}
-                        className="w-full py-4 bg-black text-white rounded-2xl font-bold text-lg shadow-xl shadow-neutral-300 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
-                    >
-                        <CreditCard className="w-6 h-6" />
-                        Thanh toán ngay
-                    </button>
-                    <p className="text-center text-xs text-gray-400 mt-3">
-                        Hỗ trợ mọi ngân hàng, Momo, ZaloPay qua VietQR
-                    </p>
-                </div>
-              )}
-              {/* Thông tin phụ (Chỉ hiện khi đang đợi) */}
-              {isWaiting && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
-                   <div className="flex items-start gap-4 p-5 bg-gray-50 rounded-xl border border-gray-100">
-                      <Clock className="w-6 h-6 text-gray-500 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-semibold text-gray-900">Thời gian ước tính</p>
-                        <p className="text-sm text-gray-500">{estimatedTimeMessage}</p>
-                      </div>
+                    
+                    {/* Badge thời gian */}
+                    <div className={`
+                        inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full text-xs font-bold
+                        ${themeColor === 'blue' ? 'bg-gray-100 text-gray-700' : 'bg-black/20 text-white'}
+                    `}>
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Thời gian: {timeDisplay}</span>
                     </div>
                 </div>
-              )}
             </div>
+        </div>
 
-            {/* Cột phải: Hướng dẫn */}
-            <div className="lg:col-span-1 space-y-10">
-                <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-lg">
-                  <h3 className="font-bold text-2xl mb-5 text-gray-900">Hướng dẫn</h3>
-                  <ol className="space-y-5 text-gray-700">
-                    <li className="flex items-start gap-4">
-                      <span className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-bold text-sm">1</span>
-                      <span>Theo dõi số thứ tự trên màn hình này.</span>
-                    </li>
-                    <li className="flex items-start gap-4">
-                      <span className="w-8 h-8 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center font-bold text-sm">2</span>
-                      <span>Đến cửa hàng trước 5-10 phút khi gần đến lượt.</span>
-                    </li>
-                    <li className="flex items-start gap-4">
-                      <span className="w-8 h-8 bg-blue-100 text-blue-800 rounded-full flex items-center justify-center font-bold text-sm">3</span>
-                      <span>Đưa mã QR cho nhân viên khi được gọi.</span>
-                    </li>
-                  </ol>
+        {/* 2. VÉ (TICKET COMPONENT) */}
+        <div className="transform transition-all hover:scale-[1.01]">
+            <QueueTicket 
+                queueNumber={ticket.ticketNumber}
+                customerName={ticket.guestName || ticket.customerName || 'Bạn'}
+                services={ticket.serviceNames || ticket.serviceIds || []} 
+                estimatedTime={timeDisplay}
+                position={currentPosition}
+                status={status}
+                onCancel={handleCancel}
+            />
+        </div>
+
+        {/* 3. NÚT THANH TOÁN (Sticky hoặc nổi bật) */}
+        {canPay && (
+            <div className="fixed bottom-6 left-4 right-4 max-w-2xl mx-auto z-40 animate-in slide-in-from-bottom-4 duration-500">
+                <button 
+                    onClick={() => setShowPayment(true)}
+                    className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-lg shadow-2xl hover:bg-black transition-all flex items-center justify-center gap-3 border border-gray-700/50"
+                >
+                    <CreditCard className="w-6 h-6" />
+                    Thanh toán ({ticket.totalPrice.toLocaleString()}đ)
+                </button>
+            </div>
+        )}
+
+        {/* 4. INFO / HƯỚNG DẪN */}
+        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
+            <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <Info className="w-5 h-5 text-blue-500" />
+                Hướng dẫn
+            </h3>
+            <ul className="space-y-4">
+                <li className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center font-bold text-sm text-gray-500 shrink-0">1</div>
+                    <p className="text-sm text-gray-600 pt-1.5">Theo dõi số thứ tự trên màn hình này. Trang sẽ tự động cập nhật.</p>
+                </li>
+                <li className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center font-bold text-sm text-gray-500 shrink-0">2</div>
+                    <p className="text-sm text-gray-600 pt-1.5">Vui lòng đến cửa hàng <span className="font-bold text-gray-900">trước 10 phút</span> nếu bạn đang ở xa.</p>
+                </li>
+                <li className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center font-bold text-sm text-gray-500 shrink-0">3</div>
+                    <p className="text-sm text-gray-600 pt-1.5">Khi được gọi, hãy đưa <span className="font-bold text-gray-900">mã QR trên vé</span> cho nhân viên lễ tân.</p>
+                </li>
+            </ul>
+            
+            <div className="pt-4 mt-4 border-t border-gray-100">
+                <div className="flex items-center gap-3 text-sm text-gray-500">
+                    <MapPin className="w-4 h-4" />
+                    <span>1Hòa Tiến-Hòa Vang-Đà Nẵng</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-gray-500 mt-2">
+                    <Phone className="w-4 h-4" />
+                    <span>Hotline: xxxxxxx</span>
                 </div>
             </div>
-
-          </div>
         </div>
-      </div>
-      {/* MODAL THANH TOÁN */}
+
+        {/* Khoảng trống để không bị nút thanh toán che nếu có */}
+        {canPay && <div className="h-24"></div>}
+      </main>
+
+      {/* Modal */}
       {showPayment && (
         <PaymentModal ticket={ticket} onClose={() => setShowPayment(false)} />
       )}

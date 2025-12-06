@@ -16,7 +16,7 @@ export default function ShopHeader({ hasTicket }: ShopHeaderProps) {
           </h1>
           <div className="flex items-center text-xs text-gray-500 mt-1">
             <MapPin className="w-3 h-3 mr-1" />
-            <span>123 Nguyễn Huệ, Huế</span>
+            <span>Hòa Tiến, Hòa Vang, Đà Nẵng, Việt Nam</span>
             <span className="mx-2">•</span>
             <div className="w-2 h-2 rounded-full bg-green-500 mr-1"></div>
             <span className="text-green-600 font-medium">Đang mở cửa</span>

@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/supabase/prisma/db';
 import { NextResponse } from 'next/server';
-
 // Định nghĩa kiểu dữ liệu SePay gửi về
 interface SePayTransaction {
   id: number;
@@ -100,7 +99,6 @@ export async function POST(req: Request) {
     const napMatch = content.match(/NAP\d+/i);
     if (napMatch) {
         const code = napMatch[0].toUpperCase();
-
         const order = await prisma.creditTransaction.findUnique({
             where: { code, status: 'PENDING' }
         });

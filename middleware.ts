@@ -1,17 +1,48 @@
 // middleware.ts
-import { createMiddlewareSupabaseClient } from '@/lib/supabase/utils';
+import { createMiddlewareSupabaseClient } from '@/lib/supabase/middleware'; // <--- SỬA ĐƯỜNG DẪN IMPORT
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 import { NextResponse, type NextRequest } from 'next/server';
 
 const PROTECTED_API_PATHS = [
-  // '/api/auth/register',
-  // '/api/gemini/analyze',
   '/api/sepay/webhook',
 ];
 
+// Khởi tạo Ratelimit (Giữ nguyên)
+const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(10, "10 s"),
+  analytics: true,
+  prefix: "@upstash/ratelimit",
+});
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const ip = req.headers.get("x-forwarded-for") ?? "127.0.0.1";
 
-  // 1. Check API Key nội bộ (như cũ)
+  // === A. RATE LIMITING ===
+  if (pathname.startsWith('/api') || pathname.startsWith('/login') || pathname.startsWith('/queue')) {
+    try {
+        const { success, limit, reset, remaining } = await ratelimit.limit(ip);
+        if (!success) {
+          return new NextResponse("Too Many Requests (Bạn thao tác quá nhanh, vui lòng thử lại sau)", {
+            status: 429,
+            headers: {
+              "X-RateLimit-Limit": limit.toString(),
+              "X-RateLimit-Remaining": remaining.toString(),
+              "X-RateLimit-Reset": reset.toString(),
+            },
+          });
+        }
+    } catch (e) {
+        console.error("Rate limit error:", e);
+        // Nếu Redis lỗi, vẫn cho qua để không chặn người dùng thật
+    }
+  }
+
+  // === B. LOGIC AUTH ===
+
+  // 1. Check API Key nội bộ
   if (PROTECTED_API_PATHS.some(p => pathname.startsWith(p))) {
     const authHeader = req.headers.get('authorization');
     const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET;
@@ -21,32 +52,29 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Khởi tạo Supabase & lấy User
+  // 2. Khởi tạo Supabase (Sử dụng hàm từ file mới)
   const { supabase, response } = createMiddlewareSupabaseClient(req);
+  
+  // Quan trọng: getUser sẽ làm mới session nếu cần
   const { data: { user } } = await supabase.auth.getUser();
 
-  // === LOGIC MỚI BẮT ĐẦU TỪ ĐÂY ===
-  
-  // Lấy Role từ metadata (Nếu chưa có thì mặc định là USER)
-  // Lưu ý: Cần đảm bảo lúc đăng ký/update role bạn đã sync vào metadata
   const userRole = user?.user_metadata?.role || 'USER';
 
   const protectedPaths = ['/queue', '/admin', '/try-hair', '/home'];
   const authPaths = ['/login', '/register'];
-  const adminPaths = ['/admin']; // Trang chỉ dành cho Admin
+  const adminPaths = ['/admin'];
 
   const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
   const isAuthPage = authPaths.some((path) => pathname.startsWith(path));
   const isAdminPage = adminPaths.some((path) => pathname.startsWith(path));
 
-  // CASE A: Chưa đăng nhập mà vào trang bảo vệ -> Đá về Login
+  // Logic Redirect
   if (isProtected && !user) {
     const redirectUrl = new URL('/login', req.url);
     redirectUrl.searchParams.set('redirectedFrom', pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // CASE B: Đã đăng nhập mà cố vào Login/Register -> Chuyển hướng theo Role
   if (isAuthPage && user) {
     if (userRole === 'ADMIN') {
       return NextResponse.redirect(new URL('/admin', req.url));
@@ -54,9 +82,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/queue', req.url));
   }
 
-  // CASE C: User thường cố vào trang Admin -> Đá về Queue
   if (isAdminPage && user && userRole !== 'ADMIN') {
-    // Redirect về trang queue hoặc trang thông báo lỗi 403
     return NextResponse.redirect(new URL('/queue', req.url));
   }
 

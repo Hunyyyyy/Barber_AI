@@ -13,7 +13,7 @@ export interface GeneralAdvice {
   aftercare_dont: string[]; // Những việc nên tránh để tổn hại tóc (mảng gạch đầu dòng)
   rpg_color_suggestion: string; // Mã màu tóc phù hợp nhất theo chuẩn RGB
   accessory: {
-    hat: string;
+    //hat: string;
     glasses: string;
     necklace: string;
     earring: string;
@@ -32,6 +32,7 @@ export interface Hairstyle {
   english_name: string;
   why_suitable: string;
   how_to_style: string;
+  technical_description: string; // Mô tả kỹ thuật chi tiết cho AI tạo ảnh
   maintenance: string;
   recommended_products: string;
   celebrity_example?: string;

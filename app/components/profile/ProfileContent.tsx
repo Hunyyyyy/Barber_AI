@@ -1,88 +1,116 @@
 'use client';
 
 import { updateUserInfo, uploadUserAvatar } from '@/actions/user.actions';
-import CreditTopUpModal from '@/components/profile/CreditTopUpModal'; // Component modal nạp tiền bên dưới
-import { FaceShape } from '@prisma/client'; // Import Enum từ Prisma
+import CreditTopUpModal from '@/components/profile/CreditTopUpModal';
+import { FaceShape } from '@prisma/client';
 import { Camera, CreditCard, Loader2, Pencil, Save, User } from 'lucide-react';
 import { useState } from 'react';
 
 interface ProfileContentProps {
-  user: any; // Type chính xác là User từ Prisma
+  user: any;
 }
 
 export default function ProfileContent({ user }: ProfileContentProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
-const [isUploading, setIsUploading] = useState(false); // State loading cho upload ảnh
-  // State form data
+  
+  // State lưu file ảnh gốc để upload khi bấm Save
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   const [formData, setFormData] = useState({
     fullName: user.fullName || '',
     phone: user.phone || '',
-    faceShape: user.faceShape || 'OVAL', // Mặc định hoặc lấy từ DB
+    faceShape: user.faceShape || 'OVAL',
     avatarUrl: user.avatarUrl || '',
   });
 
-  // Xử lý thay đổi input
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Xử lý upload ảnh (Giả lập - Cần tích hợp Supabase Storage thực tế)
-  // --- XỬ LÝ UPLOAD ẢNH MỚI ---
-// --- XỬ LÝ UPLOAD ẢNH MỚI ---
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 1. Chỉ Preview ảnh, chưa Upload ngay
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 1. Preview ảnh ngay lập tức (UX)
+    // Lưu file vào state để dành upload sau
+    setSelectedFile(file);
+
+    // Tạo URL preview
     const previewUrl = URL.createObjectURL(file);
     setFormData((prev) => ({ ...prev, avatarUrl: previewUrl }));
-
-    // 2. Gọi Server Action Upload
-    setIsUploading(true);
-    const formDataUpload = new FormData();
-    formDataUpload.append('file', file);
-
-    const res = await uploadUserAvatar(formDataUpload);
-    
-    setIsUploading(false);
-
-    if (res.success) {
-      // [FIX]: Thêm kiểm tra 'user' in res để TypeScript hiểu đây là object thành công
-      if ('user' in res && res.user?.avatarUrl) {
-          // Lưu ý: res.user.avatarUrl có thể null nên cần check kỹ hoặc ép kiểu string nếu chắc chắn
-          const newUrl = res.user.avatarUrl;
-          setFormData((prev) => ({ ...prev, avatarUrl: newUrl || '' }));
-      }
-      alert("Đổi ảnh đại diện thành công!");
-    } else {
-      // Với trường hợp lỗi, res có thể không có error message rõ ràng tuỳ vào type
-      // Dùng cú pháp an toàn: ('error' in res ? res.error : "Lỗi upload ảnh")
-      alert('error' in res ? res.error : "Lỗi upload ảnh");
-      
-      // Revert về ảnh cũ nếu lỗi (tuỳ chọn)
-      // setFormData((prev) => ({ ...prev, avatarUrl: user.avatarUrl || '' }));
-    }
   };
 
+  // 2. Hàm Save tổng hợp
   const handleSave = async () => {
     setIsLoading(true);
-    // Chỉ gửi thông tin text, avatar đã xử lý riêng ở trên
-    const res = await updateUserInfo({
-      fullName: formData.fullName,
-      phone: formData.phone,
-      faceShape: formData.faceShape as FaceShape,
-    });
+    let newAvatarUrl = formData.avatarUrl;
 
-    if (res.success) {
-      setIsEditing(false);
-      alert('Cập nhật thành công!');
-    } else {
-      alert(res.error);
+    try {
+      // BƯỚC 1: Nếu có file mới được chọn -> Upload trước
+      if (selectedFile) {
+        const formDataUpload = new FormData();
+        formDataUpload.append('file', selectedFile);
+
+        const uploadRes = await uploadUserAvatar(formDataUpload);
+        
+        if (!uploadRes.success || !('user' in uploadRes)) {
+           alert(uploadRes.error || "Lỗi upload ảnh");
+           setIsLoading(false);
+           return; 
+        }
+        
+        // Lấy URL ảnh thật từ server trả về
+        newAvatarUrl = uploadRes.user?.avatarUrl || newAvatarUrl;
+      }
+
+      // BƯỚC 2: Kiểm tra xem có thay đổi dữ liệu text không
+      const hasDataChanged = 
+          formData.fullName !== user.fullName ||
+          formData.phone !== user.phone ||
+          formData.faceShape !== user.faceShape;
+
+      // BƯỚC 3: Cập nhật thông tin (Nếu có ảnh mới HOẶC có data thay đổi)
+      if (selectedFile || hasDataChanged) {
+          const updateRes = await updateUserInfo({
+            fullName: formData.fullName,
+            phone: formData.phone,
+            faceShape: formData.faceShape as FaceShape,
+            avatarUrl: newAvatarUrl, // Gửi URL ảnh mới (hoặc cũ nếu không đổi)
+          });
+
+          if (updateRes.success) {
+            alert('Cập nhật hồ sơ thành công!');
+            setIsEditing(false);
+            setSelectedFile(null); // Reset file
+          } else {
+            alert(updateRes.error);
+          }
+      } else {
+          // Không có gì thay đổi thì tắt edit luôn
+          setIsEditing(false);
+      }
+
+    } catch (error) {
+      console.error(error);
+      alert("Đã có lỗi xảy ra.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
+
+  const handleCancel = () => {
+      // Revert lại dữ liệu gốc
+      setFormData({
+        fullName: user.fullName || '',
+        phone: user.phone || '',
+        faceShape: user.faceShape || 'OVAL',
+        avatarUrl: user.avatarUrl || '',
+      });
+      setSelectedFile(null);
+      setIsEditing(false);
+  }
 
   return (
     <div className="space-y-6">
@@ -131,7 +159,7 @@ const [isUploading, setIsUploading] = useState(false); // State loading cho uplo
             {isEditing ? (
                  <div className="flex gap-2">
                     <button 
-                        onClick={() => setIsEditing(false)} 
+                        onClick={handleCancel} 
                         className="bg-white/20 backdrop-blur-md text-white px-4 py-2 rounded-xl font-medium hover:bg-white/30 transition text-sm"
                     >
                         Hủy
@@ -156,7 +184,7 @@ const [isUploading, setIsUploading] = useState(false); // State loading cho uplo
         </div>
       </div>
 
-      {/* --- PHẦN 2: FORM CHỈNH SỬA (Hiện khi isEditing = true) --- */}
+      {/* --- PHẦN 2: FORM CHỈNH SỬA --- */}
       {isEditing && (
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 animate-in slide-in-from-top-4 duration-300">
             <h3 className="font-bold text-lg mb-4">Thông tin chi tiết</h3>
@@ -220,7 +248,6 @@ const [isUploading, setIsUploading] = useState(false); // State loading cho uplo
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/20 rounded-full blur-2xl"></div>
       </div>
 
-      {/* MODAL NẠP TIỀN */}
       {showTopUpModal && (
         <CreditTopUpModal 
             user={user} 

@@ -59,6 +59,7 @@ export async function updateShopSettings(prevState: any ,formData: FormData) {
     });
 
     revalidatePath('/admin');
+    
     // Trả về message để UI hiển thị thông báo thành công
     return { success: true, message: "Cập nhật cài đặt thành công!" };
 
@@ -115,8 +116,8 @@ export async function upsertService(prevState: any, formData: FormData) {
     return { success: true, message: id ? "Cập nhật thành công!" : "Thêm mới thành công!" };
 
   } catch (error: any) {
-    console.error(error);
-    return { success: false, error: error.message || "Lỗi hệ thống khi lưu dịch vụ" };
+    console.error("admin.actions upsertService",error);
+    return { success: false, error:"Lỗi hệ thống khi lưu dịch vụ" };
   }
 }
 

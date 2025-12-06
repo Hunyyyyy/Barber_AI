@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarCheck2, ChevronLeft, ChevronRight, Home, Info, Scissors, Sparkles } from "lucide-react";
+import { CalendarCheck2, ChevronLeft, ChevronRight, History, Home, Scissors, Sparkles } from "lucide-react";
 import { useState } from "react";
 import ActiveLink from "./ActiveLink";
 
@@ -8,7 +8,7 @@ const navItems = [
   { href: "/home", label: "Trang Chủ", icon: Home },
   { href: "/try-hair", label: "Phân tích kiểu tóc phù hợp", icon: Sparkles },
   { href: "/queue", label: "Đặt lịch", icon: CalendarCheck2 },
-  { href: "/about", label: "About", icon: Info },
+  { href: "/history", label: "Lịch sử & bộ sưu tập", icon: History },
 ];
 
 export default function LeftSideBar() {

@@ -43,7 +43,7 @@ export async function confirmPayment(ticketId: string, method: PaymentMethod) {
     return { success: true, message: 'Thanh toán thành công!' };
 
   } catch (error) {
-    console.error("Payment Error:", error);
+    console.error("Payment Error in payment.action:", error);
     return { success: false, error: 'Lỗi khi xử lý thanh toán' };
   }
 }

@@ -160,11 +160,11 @@ export default function HairstyleDetailModal({ hairstyle, onClose }: Props) {
           </div>
 
           {/* Footer CTA */}
-          <div className="p-6 border-t border-neutral-100 bg-white">
+          {/* <div className="p-6 border-t border-neutral-100 bg-white">
             <button className="w-full py-3.5 bg-black text-white rounded-xl font-bold text-sm hover:bg-neutral-800 transition shadow-lg shadow-neutral-200 cursor-pointer">
               Save to Collection
             </button>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
