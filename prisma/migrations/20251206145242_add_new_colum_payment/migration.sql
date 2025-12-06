@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "QueueTicket" ADD COLUMN     "amountPaid" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "ShopSetting" ADD COLUMN     "bankAccountName" TEXT NOT NULL DEFAULT 'NGO NHAT HUY',
+ADD COLUMN     "bankAccountNo" TEXT NOT NULL DEFAULT '0795516929',
+ADD COLUMN     "bankName" TEXT NOT NULL DEFAULT 'MB',
+ADD COLUMN     "qrTemplate" TEXT NOT NULL DEFAULT 'compact2';

@@ -59,11 +59,11 @@ export default function QueueHomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full mx-auto px-0 sm:px-0 lg:px-0 py-0">
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
 
           <div className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
-            <div className="max-w-7xl mx-auto px-6 py-6">
+            <div className="w-full mx-auto px-6 py-6">
               <ShopHeader hasTicket={hasTicket} />
             </div>
           </div>

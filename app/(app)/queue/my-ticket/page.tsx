@@ -192,7 +192,7 @@ export default function MyTicketPage() {
 
         {/* 3. NÚT THANH TOÁN (Sticky hoặc nổi bật) */}
         {canPay && (
-            <div className="fixed bottom-6 left-4 right-4 max-w-2xl mx-auto z-40 animate-in slide-in-from-bottom-4 duration-500">
+            <div className=" bottom-6 left-4 right-4 max-w-2xl mx-auto z-40 animate-in slide-in-from-bottom-4 duration-500">
                 <button 
                     onClick={() => setShowPayment(true)}
                     className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-lg shadow-2xl hover:bg-black transition-all flex items-center justify-center gap-3 border border-gray-700/50"

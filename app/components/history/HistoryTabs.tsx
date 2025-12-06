@@ -16,20 +16,26 @@ export default function HistoryTabs({ active, onChange }: HistoryTabsProps) {
   ];
 
   return (
-    <div className="flex p-1 bg-neutral-100 rounded-xl mb-8 overflow-x-auto scrollbar-hide">
+    // SỬA: Chuyển từ flex sang grid trên mobile (grid-cols-2) và flex trên desktop (md:flex)
+    <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-xl mb-8 border border-border md:flex md:gap-0">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
           className={`
-            flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-bold transition-all whitespace-nowrap
+            flex items-center justify-center gap-2 py-3 px-3 rounded-lg font-bold transition-all
+            
+            /* Responsive: Chữ nhỏ hơn trên mobile (text-xs) và lớn hơn trên desktop (md:text-sm) */
+            text-xs md:text-sm md:flex-1 whitespace-nowrap
+
             ${active === tab.id 
-              ? 'bg-white text-black shadow-sm ring-1 ring-black/5' 
-              : 'text-neutral-500 hover:text-black hover:bg-neutral-200/50'
+              ? 'bg-background text-foreground shadow-sm ring-1 ring-border' 
+              : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
             }
           `}
         >
-          <tab.icon className="w-4 h-4" />
+          {/* Icon cũng resize nhẹ để cân đối */}
+          <tab.icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
           {tab.label}
         </button>
       ))}

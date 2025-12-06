@@ -41,7 +41,7 @@ export default function CompleteTicketButton({ ticketId }: Props) {
       className={`
         px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow-sm transition-colors
         ${isPending 
-          ? 'bg-gray-400 cursor-not-allowed text-gray-100' 
+          ? 'bg-muted cursor-not-allowed text-muted-foreground' 
           : 'bg-green-600 hover:bg-green-700 text-white'
         }
       `}

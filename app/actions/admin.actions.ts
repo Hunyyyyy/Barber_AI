@@ -31,17 +31,16 @@ export async function getShopSettings() {
 
 export async function updateShopSettings(prevState: any ,formData: FormData) {
   try {
-    await checkAdmin(); // Kiểm tra quyền truy cập
+    await checkAdmin(); 
 
     const maxDailyTicketsRaw = formData.get('maxDailyTickets') as string;
     const maxDailyTickets = parseInt(maxDailyTicketsRaw);
 
-    // 1. LOGIC KIỂM TRA DỮ LIỆU ĐẦU VÀO
     if (isNaN(maxDailyTickets) || maxDailyTickets < 1) {
       return { success: false, error: "Số lượng khách tối đa phải là số nguyên dương." };
     }
     
-    // 2. CHUẨN BỊ DỮ LIỆU
+    // [CẬP NHẬT] Thêm các trường bank vào data
     const data = {
       morningOpen: formData.get('morningOpen') as string,
       morningClose: formData.get('morningClose') as string,
@@ -49,9 +48,14 @@ export async function updateShopSettings(prevState: any ,formData: FormData) {
       afternoonClose: formData.get('afternoonClose') as string,
       maxDailyTickets: maxDailyTickets,
       isShopOpen: formData.get('isShopOpen') === 'on',
+      
+      // Thêm phần này:
+      bankName: formData.get('bankName') as string,           // VD: MB, VCB
+      bankAccountNo: formData.get('bankAccountNo') as string, // Số tài khoản
+      bankAccountName: formData.get('bankAccountName') as string, // Tên chủ TK
+      qrTemplate: formData.get('qrTemplate') as string,       // Mẫu QR
     };
     
-    // 3. THAO TÁC DATABASE
     await prisma.shopSetting.upsert({
       where: { id: '1' },
       update: data,
@@ -60,13 +64,10 @@ export async function updateShopSettings(prevState: any ,formData: FormData) {
 
     revalidatePath('/admin');
     
-    // Trả về message để UI hiển thị thông báo thành công
     return { success: true, message: "Cập nhật cài đặt thành công!" };
 
   } catch (error: any) {
     console.error("Update Shop Settings Error:", error);
-    
-    // Xử lý lỗi quyền truy cập và lỗi chung
     if (error.message.includes('Forbidden') || error.message.includes('Unauthorized')) {
         return { success: false, error: "Bạn không có quyền quản trị." };
     }

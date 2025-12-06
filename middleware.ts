@@ -67,7 +67,7 @@ export async function middleware(req: NextRequest) {
   const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
   const isAuthPage = authPaths.some((path) => pathname.startsWith(path));
   const isAdminPage = adminPaths.some((path) => pathname.startsWith(path));
-
+  const isRootPage = pathname === '/';
   // Logic Redirect
   if (isProtected && !user) {
     const redirectUrl = new URL('/login', req.url);
@@ -79,11 +79,18 @@ export async function middleware(req: NextRequest) {
     if (userRole === 'ADMIN') {
       return NextResponse.redirect(new URL('/admin', req.url));
     }
-    return NextResponse.redirect(new URL('/queue', req.url));
+    return NextResponse.redirect(new URL('/home', req.url));
+  }
+
+  if (isRootPage && user) {
+    if (userRole === 'ADMIN') {
+      return NextResponse.redirect(new URL('/admin', req.url));
+    }
+    return NextResponse.redirect(new URL('/home', req.url));
   }
 
   if (isAdminPage && user && userRole !== 'ADMIN') {
-    return NextResponse.redirect(new URL('/queue', req.url));
+    return NextResponse.redirect(new URL('/home', req.url));
   }
 
   return response;

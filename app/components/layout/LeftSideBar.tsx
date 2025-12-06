@@ -1,31 +1,48 @@
 "use client";
 
-import { CalendarCheck2, ChevronLeft, ChevronRight, History, Home, Scissors, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { CalendarCheck2, ChevronLeft, ChevronRight, History, Home, Scissors, ShieldCheck, Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
 import ActiveLink from "./ActiveLink";
+interface LeftSideBarProps {
+  role?: string | null;
+}
 
-const navItems = [
-  { href: "/home", label: "Trang Chủ", icon: Home },
-  { href: "/try-hair", label: "Phân tích kiểu tóc phù hợp", icon: Sparkles },
-  { href: "/queue", label: "Đặt lịch", icon: CalendarCheck2 },
-  { href: "/history", label: "Lịch sử & bộ sưu tập", icon: History },
-];
 
-export default function LeftSideBar() {
-  const [collapsed, setCollapsed] = useState(true);
+export default function LeftSideBar({ role }: LeftSideBarProps) {
+    const [collapsed, setCollapsed] = useState(true);
+const navItems = useMemo(() => {
+    const items = [
+      { href: "/home", label: "Trang Chủ", icon: Home },
+      { href: "/try-hair", label: "Phân tích tóc", icon: Sparkles },
+      { href: "/queue", label: "Đặt lịch", icon: CalendarCheck2 },
+      { href: "/history", label: "Lịch sử", icon: History },
+    ];
 
+    // Kiểm tra nếu là ADMIN thì thêm vào mảng
+    // Lưu ý: Chuỗi 'ADMIN' phải khớp với giá trị trong Database của bạn (viết hoa/thường)
+    if (role === "ADMIN") {
+      items.push({ 
+        href: "/admin", 
+        label: "Quản trị", 
+        icon: ShieldCheck 
+      });
+    }
+
+    return items;
+  }, [role]);
   return (
     <aside
-      className={`hidden md:flex flex-col h-[calc(100vh-80px)] sticky top-20 z-40 bg-white border-r border-neutral-200 transition-all duration-300 ease-in-out ${
+      className={`hidden md:flex flex-col h-[calc(100vh-80px)] sticky top-20 z-40 bg-white text-neutral-900 border-r border-neutral-200 transition-all duration-300 ease-in-out ${
         collapsed ? "w-20" : "w-64"
       }`}
     >
       <div className="flex-1 py-6 px-3 space-y-2">
+        {/* Render danh sách items đã tính toán ở trên */}
         {navItems.map((item) => (
           <ActiveLink key={item.href} href={item.href}>
             {(isActive) => (
               <div
-                className={`group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 cursor-pointer ${
+                className={`z-50 group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 cursor-pointer ${
                   isActive
                     ? "bg-black text-white shadow-lg shadow-neutral-200"
                     : "text-neutral-500 hover:bg-neutral-100 hover:text-black"
@@ -34,7 +51,6 @@ export default function LeftSideBar() {
                 <div className={`relative flex items-center justify-center transition-all ${collapsed ? "w-full" : ""}`}>
                   <item.icon className={`w-5 h-5 ${isActive ? "text-white" : "text-current"}`} />
                   
-                  {/* Tooltip khi collapsed */}
                   {collapsed && (
                     <div className="absolute left-full ml-4 px-3 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                       {item.label}

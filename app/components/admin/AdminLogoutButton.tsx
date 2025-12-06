@@ -18,7 +18,8 @@ export default function AdminLogoutButton() {
     <button
       onClick={handleLogout}
       disabled={isPending}
-      className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition font-medium mt-auto"
+      // SỬA: text-destructive hover:bg-destructive/10 để hỗ trợ dark mode tốt hơn
+      className="w-full flex items-center gap-3 px-4 py-3 text-destructive hover:bg-destructive/10 rounded-xl transition font-medium mt-auto"
     >
       {isPending ? (
         <Loader2 className="w-5 h-5 animate-spin" />

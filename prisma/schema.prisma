@@ -80,7 +80,10 @@ model ShopSetting {
   
   maxDailyTickets   Int      @default(50) // Giới hạn số khách trong ngày
   isShopOpen        Boolean  @default(true) // Nút tắt/bật quán khẩn cấp
-
+  bankName          String   @default("MB") // VD: MB, VCB
+  bankAccountNo     String   @default("0795516929") // Số tài khoản
+  bankAccountName   String   @default("NGO NHAT HUY") // Tên chủ TK
+  qrTemplate        String   @default("compact2") // Mẫu QR (compact2, print, qr_only...)
   updatedAt         DateTime @updatedAt
 }
 
@@ -129,7 +132,7 @@ model QueueTicket {
   user          User?         @relation(fields: [userId], references: [id])
   guestName     String?       // Tên khách nếu không login
   guestPhone    String?       // SĐT khách để liên lạc
-
+  amountPaid        Int       @default(0)
   status        TicketStatus  @default(WAITING)
 
   // Thợ phục vụ (Assign khi đến lượt)

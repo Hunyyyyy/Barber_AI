@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache';
 // --- HELPER FUNCTIONS ---
 
 // Lấy cài đặt cửa hàng
-async function getShopSettings() {
+export async function getShopSettings() {
   return await prisma.shopSetting.findUnique({ where: { id: '1' } });
 }
 
@@ -597,17 +597,66 @@ export async function checkTicketPaymentStatus(ticketId: string) {
   try {
     const ticket = await prisma.queueTicket.findUnique({
       where: { id: ticketId },
-      select: { id: true, isPaid: true, status: true }
+      select: { 
+        id: true, 
+        isPaid: true, 
+        status: true,
+        totalPrice: true,
+        amountPaid: true // [MỚI] Lấy thêm số tiền đã đóng
+      }
     });
     
     if (!ticket) return { success: false, isPaid: false };
 
+    // Tính số tiền còn thiếu
+    const remaining = ticket.totalPrice - ticket.amountPaid;
+
     return { 
       success: true, 
       isPaid: ticket.isPaid, 
-      status: ticket.status 
+      status: ticket.status,
+      amountPaid: ticket.amountPaid,
+      remaining: remaining > 0 ? remaining : 0, // Trả về số tiền thiếu để UI hiển thị
+      totalPrice: ticket.totalPrice
     };
   } catch (error) {
     return { success: false, isPaid: false };
+  }
+}
+/**
+ * [MỚI] Thợ/Admin hủy vé (Ví dụ: Khách vắng mặt, khách đổi ý)
+ */
+export async function cancelTicketByBarber(ticketId: string) {
+  try {
+    const role = await getCurrentUserRole();
+    if (role !== 'BARBER' && role !== 'ADMIN') {
+      return { success: false, error: 'Bạn không có quyền thực hiện thao tác này' };
+    }
+
+    // Cập nhật trạng thái vé
+    const ticket = await prisma.queueTicket.update({
+      where: { id: ticketId },
+      data: {
+        status: 'SKIPPED', // Hoặc 'CANCELLED' tùy logic nghiệp vụ (SKIPPED = Gọi không thấy)
+        completedAt: new Date() // Đánh dấu thời điểm kết thúc
+      }
+    });
+
+    // Giải phóng thợ nếu vé này đang được gán cho thợ đó
+    if (ticket.barberId) {
+      await prisma.barber.update({
+        where: { id: ticket.barberId },
+        data: { isBusy: false }
+      });
+    }
+
+    // Gọi khách tiếp theo (Auto Assign)
+    await autoAssignTickets();
+
+    revalidatePath('/queue');
+    return { success: true };
+  } catch (error) {
+    console.error("Cancel Ticket By Barber Error:", error);
+    return { success: false, error: 'Lỗi khi hủy vé' };
   }
 }

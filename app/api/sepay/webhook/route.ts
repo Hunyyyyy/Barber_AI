@@ -17,7 +17,7 @@ interface SePayTransaction {
 
 export async function POST(req: Request) {
   try {
-    // 1. (Tuỳ chọn) Kiểm tra bảo mật API Key
+    // 1. Auth check (giữ nguyên)
     const apiKey = req.headers.get('Authorization'); 
     if (apiKey !== `Bearer ${process.env.INTERNAL_API_SECRET}`) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -34,63 +34,73 @@ export async function POST(req: Request) {
     if (barberMatch) {
         const ticketNumber = parseInt(barberMatch[1]);
 
-        // 3. Tìm vé trong Database (Kèm thông tin Services để check loại dịch vụ)
+        // Tìm vé active
         const ticket = await prisma.queueTicket.findFirst({
             where: { 
                 ticketNumber: ticketNumber,
-                isPaid: false,
+                isPaid: false, // Chỉ xử lý vé chưa thanh toán xong
                 status: { in: ['COMPLETED', 'SERVING', 'FINISHING', 'WAITING', 'CALLING', 'PROCESSING'] },
             },
-            // [QUAN TRỌNG] Lấy thêm danh sách dịch vụ để kiểm tra
-            include: {
-                services: true 
-            }
+            include: { services: true }
         });
 
+        // Nếu không tìm thấy vé (hoặc vé đã Paid rồi), vẫn return Success để SePay không gửi lại nữa
         if (!ticket) {
-            return NextResponse.json({ success: false, message: 'Vé không tồn tại hoặc đã thanh toán' });
+            return NextResponse.json({ success: true, message: 'Vé không tồn tại hoặc đã xong' });
         }
 
-        // 4. Kiểm tra số tiền
-        if (transferAmount < ticket.totalPrice) {
-            return NextResponse.json({ success: false, message: 'Chuyển thiếu tiền' });
-        }
+        // [LOGIC MỚI] Tính toán cộng dồn
+        const previousPaid = ticket.amountPaid || 0;
+        const currentTotalPaid = previousPaid + transferAmount;
+        const isEnough = currentTotalPaid >= ticket.totalPrice; // Đủ hoặc Dư đều OK
 
-        // [LOGIC MỚI] Kiểm tra xem vé này có dịch vụ CẮT TÓC (id='CUT') hay không?
-        // Lưu ý: 'CUT' là ID bạn đã seed trong database. Nếu ID khác thì sửa lại ở đây.
-        const hasHaircutService = ticket.services.some(s => s.serviceId === 'CUT');
-
-        // 5. Cập nhật trạng thái vé -> PAID
         await prisma.$transaction(async (tx) => {
-            // A. Cập nhật vé
-            await tx.queueTicket.update({
-                where: { id: ticket.id },
-                data: {
-                    isPaid: true,
-                    status: 'PAID',
-                    paymentMethod: 'BANK_TRANSFER',
-                    paidAt: new Date(),
+            if (isEnough) {
+                // === TRƯỜNG HỢP 1: ĐỦ TIỀN HOẶC DƯ ===
+                const hasHaircutService = ticket.services.some(s => s.serviceId === 'CUT'); // ID service cắt tóc
+
+                // A. Update Ticket thành PAID
+                await tx.queueTicket.update({
+                    where: { id: ticket.id },
+                    data: {
+                        isPaid: true,
+                        status: 'PAID',
+                        paymentMethod: 'BANK_TRANSFER',
+                        paidAt: new Date(),
+                        amountPaid: currentTotalPaid // Lưu tổng tiền (kể cả phần dư)
+                    }
+                });
+
+                // B. Tặng Credit (nếu có cắt tóc)
+                if (ticket.userId && hasHaircutService) {
+                    await tx.user.update({
+                        where: { id: ticket.userId },
+                        data: { credits: { increment: 1 } }
+                    });
                 }
-            });
 
-            // B. Tặng Credit (CHỈ KHI CÓ CẮT TÓC & CÓ TÀI KHOẢN)
-            if (ticket.userId && hasHaircutService) {
-                await tx.user.update({
-                    where: { id: ticket.userId },
-                    data: { credits: { increment: 1 } } // Tặng 1 lượt
+                // C. Giải phóng thợ
+                if (ticket.barberId) {
+                    await tx.barber.update({
+                        where: { id: ticket.barberId },
+                        data: { isBusy: false }
+                    });
+                }
+            } else {
+                // === TRƯỜNG HỢP 2: THIẾU TIỀN ===
+                // Chỉ cập nhật số tiền đã đóng, KHÔNG đổi status thành PAID
+                await tx.queueTicket.update({
+                    where: { id: ticket.id },
+                    data: {
+                        amountPaid: currentTotalPaid 
+                    }
                 });
-            }
-
-            // C. Giải phóng thợ
-            if (ticket.barberId) {
-                await tx.barber.update({
-                    where: { id: ticket.barberId },
-                    data: { isBusy: false }
-                });
+                // Tiền vẫn vào túi bạn, nhưng vé chưa "Xong". 
+                // Client sẽ polling thấy amountPaid tăng lên nhưng isPaid vẫn false -> Hiển thị thông báo thiếu tiền.
             }
         });
 
-        return NextResponse.json({ success: true, message: 'Thanh toán vé thành công' });
+        return NextResponse.json({ success: true, message: 'Xử lý thanh toán thành công' });
     }
 
     // ============================================================

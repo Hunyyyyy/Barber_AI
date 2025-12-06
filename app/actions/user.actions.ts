@@ -1,5 +1,5 @@
 "use server";
-
+import { getUser } from '@/lib/supabase/auth';
 import { prisma } from '@/lib/supabase/prisma/db';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { UpdateUserSchema } from '@/lib/validation';
@@ -182,5 +182,23 @@ export async function updateUserInfo(data: {
   } catch (error) {
     console.error("Update User Error:", error);
     return { success: false, error: "Lỗi khi cập nhật thông tin." };
+  }
+}
+export async function getCurrentUserRoleAction() {
+  try {
+    // 1. Lấy user từ Supabase Auth (Chạy trên server)
+    const authUser = await getUser();
+    if (!authUser) return null;
+
+    // 2. Dùng ID đó để tìm trong bảng User của Prisma
+    const dbUser = await prisma.user.findUnique({
+      where: { id: authUser.id },
+      select: { role: true }
+    });
+
+    return dbUser?.role || null;
+  } catch (error) {
+    console.error("Error fetching role:", error);
+    return null;
   }
 }
