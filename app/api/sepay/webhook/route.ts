@@ -35,18 +35,25 @@ export async function POST(req: Request) {
     if (barberMatch) {
         const ticketNumber = parseInt(barberMatch[1]);
 
-        // Tìm vé active
+        // [SỬA] Lấy ngày hôm nay theo giờ Việt Nam để lọc
+        const todayVN = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+        const startOfToday = new Date(todayVN);
+
+        // Tìm vé active CỦA HÔM NAY
         const ticket = await prisma.queueTicket.findFirst({
             where: { 
                 ticketNumber: ticketNumber,
-                isPaid: false, // Chỉ xử lý vé chưa thanh toán xong
+                // [THÊM] Điều kiện ngày tháng: Phải lớn hơn hoặc bằng 00:00 hôm nay
+                date: { gte: startOfToday }, 
+                isPaid: false,
                 status: { in: ['COMPLETED', 'SERVING', 'FINISHING', 'WAITING', 'CALLING', 'PROCESSING'] },
             },
             include: { services: true }
         });
 
-        // Nếu không tìm thấy vé (hoặc vé đã Paid rồi), vẫn return Success để SePay không gửi lại nữa
         if (!ticket) {
+            // Log thêm để debug xem tại sao không thấy
+            console.log(`⚠️ Ticket #${ticketNumber} not found for date >= ${todayVN}`);
             return NextResponse.json({ success: true, message: 'Vé không tồn tại hoặc đã xong' });
         }
 
