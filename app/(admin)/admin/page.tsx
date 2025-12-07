@@ -1,6 +1,7 @@
 // app/(admin)/admin/page.tsx
-'use client';
 
+'use client';
+export const dynamic = 'force-dynamic';
 import { getShopSettings, updateShopSettings } from '@/actions/admin.actions';
 import { Clock, CreditCard, Loader2, Save, Users } from 'lucide-react';
 import { useActionState, useEffect, useState } from 'react';

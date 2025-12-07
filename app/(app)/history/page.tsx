@@ -1,5 +1,7 @@
-'use client';
+//app\(app)\history\page.tsx
 
+
+export const dynamic = 'force-dynamic';
 import { getAIHistory, getBookingHistory, getSavedCollection, getTransactionHistory } from '@/actions/history.actions';
 import AIAnalysisCard from '@/components/history/AIAnalysisCard';
 import BookingCard from '@/components/history/BookingCard';

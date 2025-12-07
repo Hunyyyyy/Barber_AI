@@ -5,10 +5,10 @@ import { formatCurrency } from '@/lib/utils';
 import { Copy, Loader2, X } from 'lucide-react'; // Thêm Loader2
 import { useState } from 'react';
 
-const BANK_ID = process.env.BANK_ID || 'MB'; 
-const ACCOUNT_NO = process.env.ACCOUNT_NO || '0795516929'; 
-const ACCOUNT_NAME = process.env.ACCOUNT_NAME || 'NGO NHAT HUY'; 
-const TEMPLATE = process.env.TEMPLATE||'compact2'; 
+const BANK_ID = process.env.NEXT_PUBLIC_BANK_ID || 'MB'; 
+const ACCOUNT_NO = process.env.NEXT_PUBLIC_ACCOUNT_NO || '0795516929'; 
+const ACCOUNT_NAME = process.env.NEXT_PUBLIC_ACCOUNT_NAME || 'NGO NHAT HUY'; 
+const TEMPLATE = process.env.NEXT_PUBLIC_TEMPLATE||'compact2'; 
 
 interface Props {
   user: any;
@@ -32,7 +32,6 @@ export default function CreditTopUpModal({ user, onClose }: Props) {
   const qrImgUrl = selectedPkg 
     ? `https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-${TEMPLATE}.png?amount=${selectedPkg.price}&addInfo=${transCode}&accountName=${encodeURIComponent(ACCOUNT_NAME)}`
     : '';
-
   const handleSelectPackage = async (pkg: any) => {
     try {
         setIsLoading(true);

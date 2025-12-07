@@ -1,6 +1,7 @@
 // app/queue/page.tsx
-'use client';
 
+'use client';
+export const dynamic = 'force-dynamic';
 import { fetchQueuePageData } from '@/actions/queue.actions';
 import CurrentQueueList from '@/components/queue/CurrentQueueList';
 import QueueCard from '@/components/queue/QueueCard';

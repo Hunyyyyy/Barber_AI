@@ -1,20 +1,17 @@
 "use client";
 
 import { registerAction } from "@/actions/auth.actions";
-import { Loader2 } from "lucide-react";
+import { CheckCircle, Loader2, Mail } from "lucide-react"; // Import thêm icon
 import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-// === Type Guards và Type Definitions ===
 
-// Định nghĩa các khóa hợp lệ cho Field Errors
+// === Type Guards và Type Definitions ===
 type ValidFieldKey = 'name' | 'email' | 'phone' | 'password';
 
-// Định nghĩa kiểu dữ liệu cho Field Errors để Type Guard hoạt động
 type FieldErrors = {
     [key in ValidFieldKey]?: string[];
 };
-
 // ======================================
 
 function SubmitButton() {
@@ -34,15 +31,53 @@ export default function RegisterPage() {
     // @ts-ignore ReactDOM.useFormState has been renamed – ignore in React 18
     const [state, formAction] = useActionState(registerAction, null);
 
-    // Hàm tiện ích để hiển thị lỗi cho một trường cụ thể
-    // Đã giới hạn kiểu của fieldName để fix TS 7053
     const getFieldError = (fieldName: ValidFieldKey) => {
-    return fieldErrors?.[fieldName]?.[0] ?? null;
-};
+        // @ts-ignore
+        return state?.fieldErrors?.[fieldName]?.[0] ?? null;
+    };
 
-    // Lấy lỗi chung (sử dụng Type Guard để fix lỗi TS 2339)
-    const fieldErrors = state?.fieldErrors ?? {};
+    // @ts-ignore
     const generalError = state?.formError ?? null;
+
+    // === PHẦN SỬA ĐỔI QUAN TRỌNG: GIAO DIỆN THÀNH CÔNG ===
+    // Nếu đăng ký thành công, hiển thị giao diện này thay vì form
+    // @ts-ignore
+    if (state?.success) {
+        return (
+            <div className="flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in zoom-in duration-500 py-8">
+                {/* Icon lớn thu hút sự chú ý */}
+                <div className="relative">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2">
+                        <Mail className="w-10 h-10" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 bg-green-500 text-white p-1.5 rounded-full border-4 border-white">
+                        <CheckCircle className="w-4 h-4" />
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <h1 className="text-3xl font-bold tracking-tight text-neutral-900">Kiểm tra email của bạn</h1>
+                    <p className="text-neutral-500 max-w-sm mx-auto text-lg">
+                        {/* @ts-ignore */}
+                        {state.message}
+                    </p>
+                </div>
+
+                <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 w-full max-w-sm">
+                    <p className="text-sm text-neutral-600 mb-3">
+                        Không nhận được email? Hãy kiểm tra thư mục Spam hoặc thử lại sau vài phút.
+                    </p>
+                    <Link 
+                        href="/login" 
+                        className="block w-full py-3 px-4 bg-black text-white rounded-xl font-bold text-sm hover:bg-neutral-800 transition-all text-center"
+                    >
+                        Quay lại trang đăng nhập
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+    // === KẾT THÚC PHẦN SỬA ĐỔI ===
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
@@ -53,17 +88,10 @@ export default function RegisterPage() {
 
       {/* Hiển thị lỗi chung (nếu có) */}
       {generalError && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl relative" role="alert">
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl flex items-center gap-2 text-sm font-medium" role="alert">
             <span className="block sm:inline">{generalError}</span>
         </div>
       )}
-      {/* Hiển thị thông báo thành công (nếu có) */}
-      {state?.success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-xl relative" role="alert">
-            <span className="block sm:inline">{state.message}</span>
-        </div>
-      )}
-      
 
       <form action={formAction} className="space-y-4">
         <div className="space-y-2">
@@ -72,9 +100,8 @@ export default function RegisterPage() {
               name="name" type="text" placeholder="Nguyễn Văn A" required
               className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all"
             />
-            {/* Hiển thị lỗi cho trường name */}
             {getFieldError('name') && (
-                <p className="text-xs text-red-600 mt-1">{getFieldError('name')}</p>
+                <p className="text-xs text-red-600 mt-1 font-medium">{getFieldError('name')}</p>
             )}
         </div>
         
@@ -85,9 +112,8 @@ export default function RegisterPage() {
                   name="phone" type="tel" placeholder="0912..." required
                   className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all "
                 />
-                {/* Hiển thị lỗi cho trường phone */}
                 {getFieldError('phone') && (
-                    <p className="text-xs text-red-600 mt-1">{getFieldError('phone')}</p>
+                    <p className="text-xs text-red-600 mt-1 font-medium">{getFieldError('phone')}</p>
                 )}
             </div>
             <div className="space-y-2">
@@ -96,9 +122,8 @@ export default function RegisterPage() {
                   name="email" type="email" placeholder="email@..." required
                   className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all"
                 />
-                {/* Hiển thị lỗi cho trường email */}
                 {getFieldError('email') && (
-                    <p className="text-xs text-red-600 mt-1">{getFieldError('email')}</p>
+                    <p className="text-xs text-red-600 mt-1 font-medium">{getFieldError('email')}</p>
                 )}
             </div>
         </div>
@@ -106,12 +131,11 @@ export default function RegisterPage() {
         <div className="space-y-2">
             <label className="text-xs font-bold uppercase tracking-widest text-neutral-500">Mật khẩu</label>
             <input 
-              name="password" type="password" placeholder="Tối thiểu 6 ký tự" required
+              name="password" type="password" placeholder="Tối thiểu 8 ký tự" required
               className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all"
             />
-            {/* Hiển thị lỗi cho trường password */}
             {getFieldError('password') && (
-                <p className="text-xs text-red-600 mt-1">{getFieldError('password')}</p>
+                <p className="text-xs text-red-600 mt-1 font-medium">{getFieldError('password')}</p>
             )}
         </div>
 

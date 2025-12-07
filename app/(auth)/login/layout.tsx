@@ -1,9 +1,13 @@
 import { Scissors } from "lucide-react";
 import Link from "next/link";
-
+import NextTopLoader from 'nextjs-toploader';
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen w-full flex">
+      <NextTopLoader 
+        color="currentColor"
+        showSpinner={false}
+      />
       {/* LEFT SIDE: Image / Branding */}
       <div className="hidden lg:flex w-1/2 bg-black relative overflow-hidden flex-col justify-between p-12 text-white">
         {/* Background Image Placeholder - Bạn nên thay bằng ảnh thật */}

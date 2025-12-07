@@ -1,6 +1,6 @@
 "use client";
 
-import { loginAction, loginWithGoogle } from "@/actions/auth.actions";
+import { loginAction } from "@/actions/auth.actions";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -88,7 +88,7 @@ function LoginForm() {
       </div>
 
       <button
-        onClick={() => loginWithGoogle()}
+        //onClick={() => loginWithGoogle()}
         className="w-full py-3 px-4 bg-white border border-neutral-200 text-neutral-900 rounded-xl font-bold text-sm hover:bg-neutral-50 transition-all flex items-center justify-center gap-3 cursor-pointer"
       >
          <svg className="w-5 h-5" viewBox="0 0 24 24">
