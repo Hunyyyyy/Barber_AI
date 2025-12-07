@@ -18,8 +18,8 @@ interface SePayTransaction {
 export async function POST(req: Request) {
   try {
     // 1. Auth check (giữ nguyên)
-    const apiKey = req.headers.get('Authorization'); 
-    if (apiKey !== `Bearer ${process.env.INTERNAL_API_SECRET}`) {
+     const apiKey = req.headers.get('Authorization'); 
+    if (apiKey !== `Apikey ${process.env.INTERNAL_API_SECRET}`) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
