@@ -2,13 +2,14 @@
 
 import { deleteService, getAdminServices, upsertService } from '@/actions/admin.actions';
 import { formatCurrency } from '@/lib/utils';
-import { Banknote, Clock, Edit2, Loader2, Plus, Save, Trash2, X } from 'lucide-react';
+import { Banknote, Clock, Edit2, Loader2, Plus, Save, Tag, Trash2, X } from 'lucide-react';
 import { useActionState, useEffect, useState } from 'react';
 
 interface ServiceFormState {
   id: string;
   name: string;
   price: string | number;
+  discountPrice: string | number; // [MỚI] Thêm trường giảm giá
   durationWork: string | number;
   durationWait: string | number;
   isActive: boolean;
@@ -18,6 +19,7 @@ const INITIAL_FORM: ServiceFormState = {
   id: '',
   name: '',
   price: '',
+  discountPrice: '', // [MỚI]
   durationWork: '',
   durationWait: 0,
   isActive: true,
@@ -50,6 +52,7 @@ export default function AdminServicesPage() {
       id: svc.id,
       name: svc.name,
       price: svc.price,
+      discountPrice: svc.discountPrice || '', // [MỚI] Load giá giảm lên form
       durationWork: svc.durationWork,
       durationWait: svc.durationWait,
       isActive: svc.isActive,
@@ -79,7 +82,6 @@ export default function AdminServicesPage() {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       {/* CỘT TRÁI: FORM THÊM/SỬA */}
       <div className="lg:col-span-1">
-        {/* SỬA: bg-card, text-card-foreground, border-border */}
         <div className="bg-card text-card-foreground p-6 rounded-2xl shadow-sm border border-border sticky top-8">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                 {isEditing ? <Edit2 className="w-5 h-5 text-blue-500"/> : <Plus className="w-5 h-5 text-green-500"/>}
@@ -103,7 +105,6 @@ export default function AdminServicesPage() {
                 {/* Tên dịch vụ */}
                 <div>
                     <label className="text-xs font-bold text-muted-foreground uppercase">Tên dịch vụ</label>
-                    {/* SỬA: input dùng bg-background, border-input, text-foreground */}
                     <input 
                         name="name" 
                         value={formData.name}
@@ -114,20 +115,36 @@ export default function AdminServicesPage() {
                     />
                 </div>
                 
-                {/* Giá tiền */}
-                <div>
-                    <label className="text-xs font-bold text-muted-foreground uppercase">Giá tiền (VNĐ)</label>
-                    <div className="relative">
-                        <Banknote className="absolute left-3 top-3.5 w-4 h-4 text-muted-foreground" />
-                        <input 
-                            name="price" 
-                            type="number" 
-                            value={formData.price}
-                            onChange={e => handleChange('price', e.target.value)}
-                            placeholder="50000" 
-                            className="w-full pl-9 p-3 bg-background border border-input text-foreground rounded-xl mt-1 focus:ring-2 focus:ring-primary outline-none placeholder:text-muted-foreground" 
-                            required 
-                        />
+                {/* [MỚI] Grid 2 cột cho Giá tiền */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-xs font-bold text-muted-foreground uppercase">Giá Gốc</label>
+                        <div className="relative">
+                            <Banknote className="absolute left-3 top-3.5 w-4 h-4 text-muted-foreground" />
+                            <input 
+                                name="price" 
+                                type="number" 
+                                value={formData.price}
+                                onChange={e => handleChange('price', e.target.value)}
+                                placeholder="50000" 
+                                className="w-full pl-9 p-3 bg-background border border-input text-foreground rounded-xl mt-1 focus:ring-2 focus:ring-primary outline-none placeholder:text-muted-foreground" 
+                                required 
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-red-500 uppercase">Giá KM (Nếu có)</label>
+                        <div className="relative">
+                            <Tag className="absolute left-3 top-3.5 w-4 h-4 text-red-500" />
+                            <input 
+                                name="discountPrice" 
+                                type="number" 
+                                value={formData.discountPrice}
+                                onChange={e => handleChange('discountPrice', e.target.value)}
+                                placeholder="45000" 
+                                className="w-full pl-9 p-3 bg-background border border-red-200 text-foreground rounded-xl mt-1 focus:ring-2 focus:ring-red-500 outline-none placeholder:text-muted-foreground" 
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -175,7 +192,6 @@ export default function AdminServicesPage() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 pt-2">
-                    {/* SỬA: bg-primary, text-primary-foreground */}
                     <button 
                         type="submit" 
                         disabled={isPending}
@@ -192,7 +208,6 @@ export default function AdminServicesPage() {
                             type="button" 
                             onClick={handleCancel} 
                             disabled={isPending}
-                            // SỬA: bg-muted, text-muted-foreground, hover:bg-accent
                             className="px-4 py-3 bg-muted hover:bg-accent rounded-xl font-bold text-muted-foreground hover:text-foreground transition-colors"
                         >
                             <X className="w-5 h-5" />
@@ -206,52 +221,65 @@ export default function AdminServicesPage() {
       {/* CỘT PHẢI: DANH SÁCH */}
       <div className="lg:col-span-2 space-y-4">
         {services.length === 0 && (
-            // SỬA: bg-card, border-border, text-muted-foreground
             <div className="text-center py-10 text-muted-foreground bg-card rounded-2xl border border-dashed border-border">
                 Chưa có dịch vụ nào. Hãy thêm mới bên trái.
             </div>
         )}
 
-        {services.map(svc => (
-            // SỬA: bg-card, border-border, text-card-foreground
-            <div key={svc.id} className="bg-card text-card-foreground p-5 rounded-2xl shadow-sm border border-border flex flex-col sm:flex-row justify-between items-center gap-4 transition-all hover:shadow-md">
-                <div className="flex-1">
-                    <h4 className="font-bold text-lg flex items-center gap-2 text-foreground">
-                        {svc.name}
-                        {!svc.isActive && <span className="text-xs bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full font-bold">Đã ẩn</span>}
-                    </h4>
-                    <div className="flex items-center gap-4 text-muted-foreground text-sm mt-1">
-                        <span className="flex items-center gap-1 font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-lg">
-                            <Banknote className="w-3 h-3" /> {formatCurrency(svc.price)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> 
-                            {svc.durationWork}p làm 
-                            {svc.durationWait > 0 && <span className="text-orange-500 dark:text-orange-400"> + {svc.durationWait}p chờ</span>}
-                        </span>
+        {services.map(svc => {
+             // [MỚI] Logic hiển thị giá
+             const hasDiscount = svc.discountPrice && svc.discountPrice < svc.price;
+
+             return (
+                <div key={svc.id} className="bg-card text-card-foreground p-5 rounded-2xl shadow-sm border border-border flex flex-col sm:flex-row justify-between items-center gap-4 transition-all hover:shadow-md">
+                    <div className="flex-1">
+                        <h4 className="font-bold text-lg flex items-center gap-2 text-foreground">
+                            {svc.name}
+                            {!svc.isActive && <span className="text-xs bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full font-bold">Đã ẩn</span>}
+                            {/* [MỚI] Badge Sale */}
+                            {hasDiscount && <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full font-bold animate-pulse">SALE</span>}
+                        </h4>
+                        <div className="flex items-center gap-4 text-muted-foreground text-sm mt-1">
+                            {/* [MỚI] Hiển thị giá */}
+                            <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-lg">
+                                <Banknote className="w-3 h-3" />
+                                {hasDiscount ? (
+                                    <>
+                                        <span className="line-through text-gray-400 text-xs">{formatCurrency(svc.price)}</span>
+                                        <span className="font-bold text-red-600 dark:text-red-400">{formatCurrency(svc.discountPrice)}</span>
+                                    </>
+                                ) : (
+                                    <span className="font-bold text-green-600 dark:text-green-400">{formatCurrency(svc.price)}</span>
+                                )}
+                            </div>
+
+                            <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" /> 
+                                {svc.durationWork}p làm 
+                                {svc.durationWait > 0 && <span className="text-orange-500 dark:text-orange-400"> + {svc.durationWait}p chờ</span>}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div className="flex gap-2 w-full sm:w-auto">
+                        <button 
+                            onClick={() => handleEdit(svc)} 
+                            className="flex-1 sm:flex-none p-2 bg-muted text-muted-foreground rounded-xl hover:bg-primary hover:text-primary-foreground transition-all border border-border"
+                            title="Sửa"
+                        >
+                            <Edit2 className="w-4 h-4 mx-auto" />
+                        </button>
+                        <button 
+                            onClick={() => handleDelete(svc.id)} 
+                            className="flex-1 sm:flex-none p-2 bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 rounded-xl hover:bg-red-500 hover:text-white dark:hover:bg-red-500 dark:hover:text-white transition-all border border-red-100 dark:border-red-900/30"
+                            title="Xóa"
+                        >
+                            <Trash2 className="w-4 h-4 mx-auto" />
+                        </button>
                     </div>
                 </div>
-                
-                <div className="flex gap-2 w-full sm:w-auto">
-                    {/* SỬA: bg-muted, text-muted-foreground, hover:bg-primary, hover:text-primary-foreground */}
-                    <button 
-                        onClick={() => handleEdit(svc)} 
-                        className="flex-1 sm:flex-none p-2 bg-muted text-muted-foreground rounded-xl hover:bg-primary hover:text-primary-foreground transition-all border border-border"
-                        title="Sửa"
-                    >
-                        <Edit2 className="w-4 h-4 mx-auto" />
-                    </button>
-                    {/* SỬA: bg-red-50, text-red-500, hover:bg-red-500, hover:text-white */}
-                    <button 
-                        onClick={() => handleDelete(svc.id)} 
-                        className="flex-1 sm:flex-none p-2 bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 rounded-xl hover:bg-red-500 hover:text-white dark:hover:bg-red-500 dark:hover:text-white transition-all border border-red-100 dark:border-red-900/30"
-                        title="Xóa"
-                    >
-                        <Trash2 className="w-4 h-4 mx-auto" />
-                    </button>
-                </div>
-            </div>
-        ))}
+            );
+        })}
       </div>
     </div>
   );

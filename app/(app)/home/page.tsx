@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { getHomePageData } from '@/actions/home.actions';
 import { formatCurrency } from '@/lib/utils';
-import { ArrowRight, CalendarDays, Clock, Loader2, MapPin, Phone, Scissors, Star } from 'lucide-react';
+import { ArrowRight, CalendarDays, Clock, Loader2, MapPin, Megaphone, Phone, Scissors, Star, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -13,7 +13,7 @@ export default function HomePage() {
   // 1. Khai báo State để chứa dữ liệu và trạng thái loading
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
+const [showAnnouncement, setShowAnnouncement] = useState(true);
   // 2. Dùng useEffect để gọi dữ liệu khi component vừa mount
   useEffect(() => {
     const loadData = async () => {
@@ -55,11 +55,26 @@ export default function HomePage() {
   // 5. Destructuring dữ liệu (Giống code cũ)
   const { shopName, address, settings, services, barbers, owner } = data;
   const isOpen = settings?.isShopOpen;
-
+const hasAnnouncement = settings?.isAnnouncementShow && settings?.announcementText && showAnnouncement;
   // 6. Render giao diện chính
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 animate-in fade-in duration-500">
-      
+      {/* --- [MỚI] NOTIFICATION BAR --- */}
+      {hasAnnouncement && (
+        <div className="relative bg-yellow-400 text-black px-4 py-3 text-center font-medium text-sm md:text-base z-50 shadow-md">
+            <div className="max-w-7xl mx-auto flex items-center justify-center gap-2">
+                <Megaphone className="w-5 h-5 animate-bounce" />
+                <span className="font-bold uppercase tracking-wide mr-1">THÔNG BÁO:</span>
+                <span>{settings.announcementText}</span>
+            </div>
+            <button 
+                onClick={() => setShowAnnouncement(false)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-black/10 rounded-full transition-colors"
+            >
+                <X className="w-4 h-4" />
+            </button>
+        </div>
+      )}
       {/* --- HERO SECTION --- */}
       <div className="relative bg-black text-white overflow-hidden">
         <div className="absolute inset-0 opacity-40 bg-[url('https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=2074&auto=format&fit=crop')] bg-cover bg-center" />
@@ -200,8 +215,14 @@ export default function HomePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {barbers?.map((barber: any) => (
               <div key={barber.id} className="bg-white p-4 rounded-2xl text-center border border-gray-100 hover:shadow-lg transition-all">
-                <div className="w-24 h-24 mx-auto bg-gray-100 rounded-full mb-4 flex items-center justify-center text-3xl font-black text-gray-400 overflow-hidden">
-                   {barber.name?.[0]}
+                <div className="w-24 h-24 mx-auto bg-gray-100 rounded-full mb-4 flex items-center justify-center text-3xl font-black text-gray-400 overflow-hidden relative">
+                   {barber.avatarUrl ? (
+                       <img src={barber.avatarUrl} alt={barber.name} className="w-full h-full object-cover"/>
+                   ) : (
+                       <span>{barber.name?.[0]}</span>
+                   )}
+                   {/* Online status dot */}
+                   <div className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-white ${barber.isBusy ? 'bg-red-500' : 'bg-green-500'}`}></div>
                 </div>
                 <h3 className="font-bold text-lg text-gray-900">{barber.name}</h3>
                 <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold mt-2 ${
@@ -209,7 +230,6 @@ export default function HomePage() {
                     ? 'bg-red-100 text-red-600' 
                     : 'bg-green-100 text-green-600'
                 }`}>
-                  <span className={`w-2 h-2 rounded-full ${barber.isBusy ? 'bg-red-500' : 'bg-green-500'}`} />
                   {barber.isBusy ? 'Đang bận' : 'Đang rảnh'}
                 </div>
               </div>

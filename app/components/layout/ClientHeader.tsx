@@ -111,11 +111,11 @@ export default function ClientHeader({ serverUser }: { serverUser: any }) {
                 <div>
                   {/* SỬA: text-foreground */}
                   <h1 className="text-lg font-bold tracking-tight text-foreground leading-none">
-                    Barber<span className="text-muted-foreground">Style</span>
+                    Dai Barber<span className="text-muted-foreground">Style</span>
                   </h1>
                   {/* SỬA: text-muted-foreground */}
                   <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
-                    AI Stylist
+                    Dai Stylist
                   </p>
                 </div>
               </>
@@ -215,7 +215,7 @@ export default function ClientHeader({ serverUser }: { serverUser: any }) {
                 </ActiveLink>
                 {/* SỬA: bg-border */}
                 <div className="h-px my-1 bg-border" />
-                <LogoutButton closeMenu={closeProfileMenu} />
+                <LogoutButton />
               </div>
             )}
 

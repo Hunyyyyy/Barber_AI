@@ -74,6 +74,7 @@ export async function POST(req: Request) {
                         isPaid: true,
                         status: 'PAID',
                         paymentMethod: 'BANK_TRANSFER',
+                        completedAt: new Date(),
                         paidAt: new Date(),
                         amountPaid: currentTotalPaid // Lưu tổng tiền (kể cả phần dư)
                     }

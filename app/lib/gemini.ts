@@ -115,11 +115,26 @@ export async function analyzeFaceAndSuggestHairstyles(imageBase64: string) {
       "color_suggestion": "Tên màu cụ thể (ví dụ: Nâu trà đen, Xám khói...)",
       "dyeing_method": "Kỹ thuật nhuộm (Full, Ombre, Highlight...)",
       "rpg_color_suggestion": "Mã HEX màu (ví dụ #5D4037)",
-      "accessory": { ... },
-      "propose_face": "Lời khuyên chăm sóc da...",
-      "clothing_recommendations": "Gợi ý trang phục...",
-      "aftercare_do": [...],
-      "aftercare_dont": [...]
+      "accessory":{
+      "glasses":"Gợi ý phụ kiện kính mắt phù hợp với kiểu tóc và khuôn mặt (ví dụ: Kính gọng tròn, Kính gọng vuông, Kính mát, etc...)",
+      "necklace":"Gợi ý phụ kiện vòng cổ phù hợp với kiểu tóc và khuôn mặt (ví dụ: Dây chuyền bạc, Vòng cổ choker, Vòng da, etc...)",
+      "earring":"Gợi ý phụ kiện bông tai phù hợp với kiểu tóc và khuôn mặt (ví dụ: Bông tai tròn, Bông tai dài, Bông tai stud, etc...)",
+      "bracelet":"Gợi ý phụ kiện vòng tay phù hợp với kiểu tóc và khuôn mặt (ví dụ: Vòng tay bạc, Vòng tay da, Vòng tay charm, etc...)",
+      "watch":"Gợi ý phụ kiện đồng hồ phù hợp với kiểu tóc và khuôn mặt (ví dụ: Đồng hồ dây da, Đồng hồ kim loại, Đồng hồ thể thao, etc...)"
+    }
+    "propose_face":"Cách để có được da mặt đẹp, sạch mụn phù hợp với độ tuổi và kiểu tóc, ví dụ:Bạn sẽ trông trẻ trung hơn nếu chăm sóc da mặt đúng cách bằng việc rửa mặt 2 lần/ngày và sử dụng kem dưỡng ẩm nhẹ  và liên tục trong vòng (số tháng tự bạn đề xuất) tháng .(tên sản phẩm phổ biến ở Việt Nam nếu có)",
+      "clothing_recommendations":"Gợi ý trang phục phù hợp với kiểu tóc và phong cách cá nhân. Chỉ gợi ý thay đổi trang phục trong khung hình như áo,áo khoác,áo ấm,etc...,quần short,quần jean,quần dài,etc...,giày sneaker,etc...(ví dụ: nếu chỉ chụp nửa thân trên thì chỉ tập trung vào áo).",
+    "aftercare_do": [
+      "Đề xuất dầu goội, dầu xả, và sản phẩm tạo kiểu phù hợp với kiểu tóc và chất tóc trong ảnh (tên sản phẩm phổ biến ở Việt Nam nếu có).",
+      "Sử dụng dầu gội và dầu xả chuyên dụng cho tóc đã qua xử lý nhiệt hoặc hóa chất.",
+      "Dùng sáp hoặc pomade có độ giữ nếp trung bình để tạo kiểu hàng ngày.",
+      "Hấp dầu hoặc ủ tóc 1-2 lần/tuần để cung cấp độ ẩm."
+    ],
+    "aftercare_dont": [
+      "Tránh gội đầu bằng nước quá nóng vì sẽ làm tóc khô và phai màu nhanh.",
+      "Không chải tóc khi còn ướt hoàn toàn để tránh làm đứt và yếu sợi tóc.",
+      "Hạn chế sử dụng máy sấy tóc ở nhiệt độ cao thường xuyên."
+    ]
     },
     "hairstyles": [
        {

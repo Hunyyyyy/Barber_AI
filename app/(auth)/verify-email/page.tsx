@@ -1,9 +1,10 @@
+// app/(auth)/verify-email/page.tsx
+
 import { CheckCircle } from "lucide-react";
 import Link from "next/link";
 
 export default function VerifyEmailSuccessPage() {
   return (
-    // Sử dụng hiệu ứng chuyển động và căn lề giống như trang Đăng nhập
     <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500 text-center">
       <div className="space-y-4">
         {/* Icon lớn thể hiện sự thành công */}
@@ -21,13 +22,13 @@ export default function VerifyEmailSuccessPage() {
       </div>
 
       <div className="pt-2">
-        {/* Nút quay lại trang Đăng nhập, thiết kế giống nút Submit */}
-        <Link href="/login" passHref legacyBehavior>
-          <a
-            className="w-full py-3 px-4 bg-black text-white rounded-xl font-bold text-sm hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            Quay lại Đăng nhập
-          </a>
+        {/* Nút quay lại trang Đăng nhập đã được cập nhật để loại bỏ legacyBehavior */}
+        <Link 
+          href="/login" 
+          // Class của thẻ <a> cũ được chuyển lên component Link
+          className="w-full py-3 px-4 bg-black text-white rounded-xl font-bold text-sm hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 cursor-pointer"
+        >
+          Quay lại Đăng nhập
         </Link>
       </div>
       

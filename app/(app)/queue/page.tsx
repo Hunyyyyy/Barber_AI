@@ -6,15 +6,17 @@ import { fetchQueuePageData } from '@/actions/queue.actions';
 import CurrentQueueList from '@/components/queue/CurrentQueueList';
 import QueueCard from '@/components/queue/QueueCard';
 import ShopHeader from '@/components/queue/ShopHeader';
-import { Loader2, Scissors, Sparkles } from 'lucide-react'; // Import thêm icon
+import { Loader2, Scissors, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 export default function QueueHomePage() {
+  // [CẬP NHẬT] Định nghĩa đúng kiểu dữ liệu từ Server Action
   const [data, setData] = useState<{
     queue: any[];
     myTicket: any;
-    estimatedWaitTime: number;
+    estimatedWaitTime: number; // Thời gian chờ chung cho khách mới
+    myWaitTime?: number;       // [MỚI] Thời gian chờ riêng cho User
     currentUser: any;
   } | null>(null);
 
@@ -30,6 +32,7 @@ export default function QueueHomePage() {
 
   useEffect(() => {
     loadData();
+    // Refresh mỗi 10 giây để cập nhật thời gian thực
     const interval = setInterval(loadData, 10000); 
     return () => clearInterval(interval);
   }, []);
@@ -46,15 +49,20 @@ export default function QueueHomePage() {
   const queue = data?.queue || [];
   const myTicket = data?.myTicket;
   const currentUser = data?.currentUser;
-  console.log('QueueHomePage - currentUser:', currentUser);
-  const estimatedTime = data?.estimatedWaitTime || 15;
+  
+  // Lấy các giá trị thời gian
+  const generalWaitTime = data?.estimatedWaitTime || 15;
+  const myWaitTime = data?.myWaitTime || 0;
 
   const hasTicket = !!myTicket;
   const userName = currentUser?.name || 'Khách';
   const userRole = currentUser?.role || null;
-  const waitingCount = queue.filter(q => ['WAITING', 'ASYNC_WAIT', 'CALLING'].includes(q.status)).length;
+  
+  // Đếm số người đang chờ (trạng thái WAITING, CALLING, PROCESSING)
+  const waitingCount = queue.filter(q => 
+    ['WAITING', 'ASYNC_WAIT', 'CALLING', 'PROCESSING'].includes(q.status)
+  ).length;
 
-  // Logic check status đang làm
   const isServing = hasTicket && ['SERVING', 'PROCESSING', 'FINISHING'].includes(myTicket.status);
   const isProcessing = hasTicket && myTicket.status === 'PROCESSING';
 
@@ -80,13 +88,19 @@ export default function QueueHomePage() {
                 <p className="text-gray-600 mt-2">Hôm nay bạn muốn làm gì nào?</p>
               </div>
 
+              {/* [CẬP NHẬT] QueueCard nhận props mới */}
               <div className="scale-110 origin-top-left">
-                <QueueCard waitingCount={waitingCount} estimatedWaitTime={estimatedTime} />
+                <QueueCard 
+                  waitingCount={waitingCount} 
+                  generalWaitTime={generalWaitTime}
+                  myWaitTime={myWaitTime}
+                  hasTicket={hasTicket}
+                />
               </div>
 
               {/* LOGIC NÚT / THẺ VÉ */}
               {!hasTicket ? (
-                // [MỚI] Kiểm tra quyền: Nếu là ADMIN hoặc BARBER thì vô hiệu hóa
+                // Nếu là ADMIN hoặc BARBER thì vô hiệu hóa nút lấy số
                 (userRole === 'ADMIN' || userRole === 'BARBER') ? (
                   <button 
                     disabled
@@ -100,15 +114,12 @@ export default function QueueHomePage() {
                   <Link href="/queue/select-service">
                     <button className="cursor-pointer w-full bg-black text-white py-6 rounded-2xl font-bold text-xl shadow-2xl hover:bg-gray-900 transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-4 group">
                       <span>LẤY SỐ NGAY</span>
-                      <svg className="w-6 h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                      </svg>
+                      <Scissors className="w-6 h-6 group-hover:rotate-12 transition-transform" />
                     </button>
                   </Link>
                 )
               ) : (
                 <Link href="/queue/my-ticket">
-                  {/* ... (Giữ nguyên phần hiển thị vé đã có) ... */}
                   <div className={`
                     border-2 p-8 rounded-2xl cursor-pointer hover:shadow-2xl transition-all group text-center relative overflow-hidden
                     ${isServing 
@@ -116,8 +127,7 @@ export default function QueueHomePage() {
                       : 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
                     }
                   `}>
-                    {/* ... Nội dung bên trong thẻ vé giữ nguyên ... */}
-                    <div className={`
+                      <div className={`
                         absolute top-0 right-0 text-xs font-bold px-3 py-1 rounded-bl-xl
                         ${isServing ? 'bg-blue-200 text-blue-800' : 'bg-green-200 text-green-800'}
                       `}>
@@ -183,19 +193,10 @@ export default function QueueHomePage() {
                    queue={queue} 
                    highlightTicketId={myTicket?.id} 
                    currentUserRole={userRole}
+                   currentUserId={currentUser?.id}
                 />
 
-                {queue.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <p className="text-lg font-bold text-gray-900">Tiệm đang trống!</p>
-                    <p className="text-gray-500">Cơ hội tuyệt vời để cắt tóc ngay mà không cần đợi.</p>
-                  </div>
-                )}
+                {/* Sửa lại điều kiện trống nếu muốn (nhưng CurrentQueueList đã xử lý rồi) */}
               </div>
             </div>
           </div>

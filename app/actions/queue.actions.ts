@@ -49,10 +49,9 @@ async function calculateTicketDetails(serviceIds: string[]) {
     where: { id: { in: serviceIds } },
   });
 
-  // Tính tổng
-  const totalPrice = services.reduce((sum, svc) => sum + svc.price, 0);
+  // Tính tổng (Sử dụng hàm getFinalPrice)
+  const totalPrice = services.reduce((sum, svc) => sum + getFinalPrice(svc), 0);
   
-  // Tổng thời gian thợ phải làm (Work) để ước lượng chờ
   const totalWorkDuration = services.reduce((sum, svc) => sum + svc.durationWork, 0);
 
   return { services, totalPrice, totalWorkDuration };
@@ -176,17 +175,18 @@ export async function getServices() {
         id: true,
         name: true,
         price: true,
+        discountPrice: true, // [MỚI] Lấy thêm trường này
         durationWork: true,
         durationWait: true,
       },
-      orderBy: { price: 'asc' }, // Sắp xếp theo giá hoặc tên
+      orderBy: { price: 'asc' },
     });
 
     return services.map(s => ({
       id: s.id,
       name: s.name,
       price: s.price,
-      // Tổng thời gian chiếm chỗ (để hiển thị cho khách biết)
+      discountPrice: s.discountPrice, // [MỚI]
       totalDuration: s.durationWork + s.durationWait 
     }));
   } catch (error) {
@@ -264,68 +264,79 @@ export async function fetchQueuePageData() {
     const todayVN = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
     const date = new Date(todayVN);
 
-    // 2. Chạy song song các tác vụ để tối ưu tốc độ
+    // 2. Chạy song song các tác vụ
     const [queueList, activeBarbersCount, myTicket] = await Promise.all([
-      // A. Lấy danh sách hàng đợi
+      // A. Lấy danh sách hàng đợi (Chỉ lấy vé chưa hoàn thành)
       prisma.queueTicket.findMany({
         where: { 
           date: { gte: date }, 
-          status: { notIn: ['CANCELLED', 'PAID', 'SKIPPED','COMPLETED'] } 
+          status: { notIn: ['CANCELLED', 'PAID', 'SKIPPED', 'COMPLETED'] } 
         },
         include: {
           services: { include: { service: true } },
           barber: true,
           user: { select: { fullName: true, avatarUrl: true, phone: true } }
         },
-        orderBy: { ticketNumber: 'asc' },
+        orderBy: { ticketNumber: 'asc' }, // Quan trọng: Sắp xếp để biết ai trước ai sau
       }),
 
-      // B. Đếm thợ đang active (để tính thời gian)
+      // B. Đếm thợ đang active
       prisma.barber.count({ where: { isActive: true } }),
 
-      // C. Lấy vé của chính User này (nếu đã login)
+      // C. Lấy vé của User hiện tại
       user ? prisma.queueTicket.findFirst({
         where: {
           userId: user.id,
           date: { gte: date },
-          status: { notIn: ['CANCELLED', 'PAID', 'SKIPPED'] }
+          status: { notIn: ['CANCELLED', 'PAID', 'SKIPPED', 'COMPLETED'] }
         },
+        include: { services: { include: { service: true } } }, // Cần services để tính thời gian cá nhân
         orderBy: { ticketNumber: 'desc' }
-      }) : null,
-      getCurrentUserRole()
+      }) : null
     ]);
 
-    // 3. Tính toán thời gian chờ chung (cho người chưa lấy số)
-    // Logic: Tổng thời gian các vé đang chờ / Số thợ
-    let totalMinutesLoad = 0;
-    // Chỉ tính những vé chưa xong
-    const activeTickets = queueList.filter(t => 
-      ['WAITING', 'CALLING', 'SERVING', 'FINISHING'].includes(t.status)
-    );
+    const safeBarberCount = activeBarbersCount > 0 ? activeBarbersCount : 1;
 
-    for (const t of activeTickets) {
-       const ticketLoad = t.services.reduce((acc, s) => acc + s.service.durationWork, 0);
-       totalMinutesLoad += ticketLoad;
-    }
+    // --- 3. TÍNH TOÁN 2 LOẠI THỜI GIAN ---
 
-    const divider = activeBarbersCount > 0 ? activeBarbersCount : 1;
-    const estimatedWaitTime = Math.ceil(totalMinutesLoad / divider) + 5; // +5p buffer
+    //[cite_start]// CASE 1: Thời gian chờ chung (Cho người chưa lấy vé) [cite: 8, 11]
+    // Tính toán dựa trên TOÀN BỘ hàng đợi hiện tại
+    const generalWaitTime = calculateWaitTime(queueList, safeBarberCount);
 
-    // 4. Tính vị trí của User (nếu có vé)
+    //[cite_start]// CASE 2: Thời gian chờ của riêng User (Nếu đã có vé) [cite: 1]
+    let myWaitTime = 0;
     let myPosition = null;
+
     if (myTicket) {
-      myPosition = queueList.filter(t => 
-        ['WAITING', 'CALLING'].includes(t.status) && t.ticketNumber < myTicket.ticketNumber
-      ).length;
+      if (myTicket.status === 'SERVING' || myTicket.status === 'FINISHING') {
+        // Đang cắt rồi thì chờ = 0
+        myWaitTime = 0;
+        myPosition = 0;
+      } else {
+        // Lọc ra danh sách những người đứng TRƯỚC mình (TicketNumber nhỏ hơn)
+        // Bao gồm cả những người đang cắt (vì phải đợi họ xong thợ mới rảnh)
+        const peopleAhead = queueList.filter(t => t.ticketNumber < myTicket.ticketNumber);
+        
+        myWaitTime = calculateWaitTime(peopleAhead, safeBarberCount);
+        
+        // Vị trí (chỉ tính những người đang WAITING trước mặt để hiển thị "Còn X người nữa")
+        myPosition = queueList.filter(t => 
+          ['WAITING', 'CALLING'].includes(t.status) && t.ticketNumber < myTicket.ticketNumber
+        ).length;
+      }
     }
-console.log("Fetch Queue Data Success,data:", user);
-    // 5. Trả về cấu trúc thống nhất
+
+    // 4. Trả về
     return {
       success: true,
       data: {
         queue: queueList,
         myTicket: myTicket ? { ...myTicket, position: myPosition } : null,
-        estimatedWaitTime,
+        
+        // Trả về 2 giá trị riêng biệt
+        estimatedWaitTime: generalWaitTime, // Dùng cho khách mới
+        myWaitTime: myWaitTime,             // Dùng cho khách đã có vé
+        
         currentUser: user ? { 
           name: user.user_metadata?.full_name || 'Bạn',
           phone: user.user_metadata?.phone || null,
@@ -470,7 +481,7 @@ export async function createQueueTicket(prevState: any, formData: FormData) {
     // await checkShopCapacity(date); // (Có thể bật lại nếu muốn giới hạn)
 
     const services = await prisma.service.findMany({ where: { id: { in: serviceIds } } });
-    const totalPrice = services.reduce((sum, svc) => sum + svc.price, 0);
+const totalPrice = services.reduce((sum, svc) => sum + getFinalPrice(svc), 0);
     const ticketNumber = await getNextTicketNumber(date);
 
     const result = await prisma.$transaction(async (tx) => {
@@ -488,7 +499,7 @@ export async function createQueueTicket(prevState: any, formData: FormData) {
           services: {
             create: services.map(svc => ({
               serviceId: svc.id,
-              priceSnapshot: svc.price
+             priceSnapshot: getFinalPrice(svc)
             }))
           }
         },
@@ -659,4 +670,33 @@ export async function cancelTicketByBarber(ticketId: string) {
     console.error("Cancel Ticket By Barber Error:", error);
     return { success: false, error: 'Lỗi khi hủy vé' };
   }
+}
+function getFinalPrice(service: any) {
+  if (service.discountPrice && service.discountPrice < service.price) {
+    return service.discountPrice;
+  }
+  return service.price;
+}
+// --- [LOGIC MỚI] HÀM TÍNH TOÁN THỜI GIAN CHỜ ---
+/**
+ * @param tickets Danh sách các vé cần tính toán
+ * @param activeBarbersCount Số lượng thợ đang làm việc
+ * @returns Số phút chờ dự kiến
+ */
+function calculateWaitTime(tickets: any[], activeBarbersCount: number) {
+  if (activeBarbersCount === 0) return 0; // Không có thợ thì không tính (hoặc trả về số lớn tùy logic)
+  
+  let totalWorkLoad = 0;
+
+  for (const ticket of tickets) {
+    // Chỉ tính những vé đang CHỜ hoặc ĐANG CẮT
+    // PROCESSING (Ngấm thuốc) -> Thợ rảnh tay -> Không tính vào load
+    if (['WAITING', 'CALLING', 'SERVING', 'FINISHING'].includes(ticket.status)) {
+       const ticketDuration = ticket.services.reduce((sum: number, s: any) => sum + s.service.durationWork, 0);
+       totalWorkLoad += ticketDuration;
+    }
+  }
+
+  // Chia đều công việc cho số thợ + 5 phút buffer dọn dẹp/di chuyển
+  return Math.ceil(totalWorkLoad / activeBarbersCount) + 5;
 }

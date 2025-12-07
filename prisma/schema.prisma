@@ -84,6 +84,8 @@ model ShopSetting {
   bankAccountNo     String   @default("0795516929") // Số tài khoản
   bankAccountName   String   @default("NGO NHAT HUY") // Tên chủ TK
   qrTemplate        String   @default("compact2") // Mẫu QR (compact2, print, qr_only...)
+  announcementText     String?  @db.Text // Nội dung thông báo (VD: Nghỉ lễ 2/9, Giảm giá...)
+  isAnnouncementShow   Boolean  @default(true) // Có hiện thông báo lên web khách không
   updatedAt         DateTime @updatedAt
 }
 
@@ -97,7 +99,7 @@ model Service {
   // Thời gian ước tính (phút)
   durationWork  Int      // Thời gian thợ phải làm (cắt, bôi thuốc)
   durationWait  Int      @default(0) // Thời gian chờ ngấm thuốc (dùng cho logic Async)
-  
+  discountPrice Int?
   // Ví dụ: 
   // Cắt tóc: work=30, wait=0
   // Uốn: work=20 (bôi thuốc), wait=45 (ngấm), work_finish=20 (xả/sấy - tính vào durationWork hoặc tách ra logic khác)

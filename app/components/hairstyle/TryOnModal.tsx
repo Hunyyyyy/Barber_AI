@@ -123,7 +123,7 @@ export default function TryOnModal({ hairstyle, originalImage, generalAdvice, on
       4. NEGATIVE PROMPT:
       ${STRICT_NEGATIVE_PROMPT}
     `.trim();
-
+    console.log(fullPrompt);
     return fullPrompt;
   };
 
@@ -158,7 +158,7 @@ export default function TryOnModal({ hairstyle, originalImage, generalAdvice, on
         if (analysisId) {
             const techDesc = hairstyle.technical_description || `A ${hairstyle.english_name} hairstyle`;
             saveGeneratedImage(analysisId, hairstyle.name, data.editedImage, techDesc)
-              .then(res => console.log("Auto saved generated history", res))
+              .then(res => console.log("Auto saved generated history"))
               .catch(err => console.error("Auto save failed", err));
         }
       } 

@@ -9,11 +9,9 @@ import { redirect } from 'next/navigation';
 
 // === ĐĂNG KÝ (Logic đã Sửa) ===
 export async function registerAction(prevState: any, formData: FormData) {
-    // Lưu ý: createSupabaseServerClient() cần phải sử dụng Service Role Key
-    // để có quyền gọi supabase.auth.admin.deleteUser()
     const supabase = await createSupabaseServerClient(); 
     
-    // 1. Validate dữ liệu đầu vào (GIỮ NGUYÊN)
+    // 1. Validate dữ liệu đầu vào
     const validated = SignUpSchema.safeParse({
         name: formData.get('name'),
         email: formData.get('email'),
@@ -21,7 +19,6 @@ export async function registerAction(prevState: any, formData: FormData) {
         password: formData.get('password'),
     });
  
-
     if (!validated.success) {
         return {
             success: false,
@@ -33,7 +30,7 @@ export async function registerAction(prevState: any, formData: FormData) {
     const { email, password, name, phone } = validated.data;
     
     // =======================================================
-    // 1.5. KIỂM TRA TÍNH DUY NHẤT CỦA SĐT TRƯỚC (QUAN TRỌNG)
+    // 1.5. KIỂM TRA TÍNH DUY NHẤT CỦA SĐT
     // =======================================================
     try {
         const existingPhone = await prisma.user.findUnique({
@@ -41,7 +38,6 @@ export async function registerAction(prevState: any, formData: FormData) {
         });
 
         if (existingPhone) {
-            // Nếu trùng SĐT trong DB -> Dừng lại ngay lập tức
             return { 
                 success: false, 
                 fieldErrors: { phone: ['Số điện thoại này đã được sử dụng.'] },
@@ -49,19 +45,40 @@ export async function registerAction(prevState: any, formData: FormData) {
             };
         }
     } catch (dbError) {
-        // Xử lý lỗi DB khi kiểm tra
         console.error('Lỗi kiểm tra SĐT DB:', dbError);
         return { success: false, formError: 'Lỗi hệ thống khi kiểm tra dữ liệu.' };
     }
+
+    // =======================================================
+    // [MỚI] 1.6. XÁC ĐỊNH ROLE (ADMIN ĐẦU TIÊN)
+    // =======================================================
+    let newRole: 'ADMIN' | 'USER' = 'USER';
+    
+    try {
+        // Kiểm tra xem đã có bất kỳ Admin nào trong hệ thống chưa
+        const existingAdmin = await prisma.user.findFirst({
+            where: { role: 'ADMIN' }
+        });
+
+        // Nếu chưa có ai là ADMIN, người này sẽ là ADMIN
+        if (!existingAdmin) {
+            newRole = 'ADMIN';
+        }
+    } catch (error) {
+        console.error("Lỗi kiểm tra role admin:", error);
+        // Nếu lỗi check, mặc định an toàn là USER
+        newRole = 'USER';
+    }
     
     // =======================================================
-    // 2. Tạo User bên Supabase Auth (CHỈ GỌI KHI SĐT HỢP LỆ)
+    // 2. Tạo User bên Supabase Auth
     // =======================================================
     const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-            data: { fullName: name, phone,role: 'USER' }, // Lưu metadata (Đổi name thành fullName cho rõ ràng)
+            // [CẬP NHẬT] Sử dụng biến newRole
+            data: { fullName: name, phone, role: newRole }, 
             emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/verify-email`,
         },
     });
@@ -71,7 +88,6 @@ export async function registerAction(prevState: any, formData: FormData) {
         return { success: false, formError: "Có lỗi xảy ra trong lúc đăng ký!" };
     }
 
-    // Check user identities (Giữ nguyên)
     if (data.user?.identities && data.user.identities.length === 0) {
         return {
             success: false,
@@ -88,15 +104,14 @@ export async function registerAction(prevState: any, formData: FormData) {
     // 3. ĐỒNG BỘ USER VÀO DATABASE CHÍNH (PRISMA)
     // =======================================================
     try {
-        // Chỉ cần tạo User mới trong bảng User khớp ID với Supabase
         await prisma.user.create({
             data: {
-                id: data.user.id, // ID khớp với Supabase Auth ID
+                id: data.user.id,
                 email: email,
-                phone: phone?.toString() || '', // Đã được kiểm tra tính duy nhất ở Bước 1.5
+                phone: phone?.toString() || '',
                 fullName: name,
                 passwordHash: 'supabase_managed', 
-                role: 'USER',
+                role: newRole, // [CẬP NHẬT] Lưu role tương ứng vào DB
                 avatarUrl: null,
                 credits: 5,
             },
@@ -105,7 +120,7 @@ export async function registerAction(prevState: any, formData: FormData) {
     } catch (dbError: any) {
         console.error('Lỗi tạo profile DB:', dbError);
         
-        // QUAN TRỌNG: Nếu lỗi DB ở đây, PHẢI xóa User đã tạo bên Supabase Auth để Rollback
+        // Rollback: Xóa user bên Supabase nếu lưu DB thất bại
         await supabase.auth.admin.deleteUser(data.user.id); 
         
         return { 
@@ -114,7 +129,12 @@ export async function registerAction(prevState: any, formData: FormData) {
         };
     }
 
-    return { success: true, message: 'Đăng ký thành công! Vui lòng kiểm tra email để xác nhận.' };
+    return { 
+        success: true, 
+        message: newRole === 'ADMIN' 
+            ? 'Đăng ký Admin thành công! Vui lòng kiểm tra email.' 
+            : 'Đăng ký thành công! Vui lòng kiểm tra email để xác nhận.' 
+    };
 }
 
 // === ĐĂNG NHẬP ===
@@ -151,16 +171,17 @@ export async function loginAction(prevState: any, formData: FormData) {
 
   // Xóa cache để cập nhật UI
  revalidatePath('/', 'layout');
-
+  const redirectTo = formData.get('redirectTo')?.toString();
   // LOGIC REDIRECT THÔNG MINH
   if (dbUser?.role === 'ADMIN') {
     redirect('/admin');
   } else if (dbUser?.role === 'BARBER') {
-    redirect('/home'); // Hoặc trang dành riêng cho thợ
+    // Thợ vẫn được coi là USER thường trong logic redirect của middleware nếu không có trang dành riêng
+    redirect(redirectTo || '/home'); // Quay lại nơi họ muốn, hoặc mặc định là /home
   } else {
     // User thường
-    const redirectTo = formData.get('redirectTo')?.toString() || '/home';
-    redirect(redirectTo);
+    // Ưu tiên redirect về trang mà họ bị chặn trước đó (ví dụ: /queue)
+    redirect(redirectTo || '/home');
   }
 }
 

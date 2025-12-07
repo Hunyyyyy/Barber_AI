@@ -36,6 +36,9 @@ export const updateShopSettingsSchema = z.object({
   morningClose: z.string().regex(/^\d{2}:\d{2}$/, 'Thời gian đóng cửa không hợp lệ').optional().nullable(),
   afternoonOpen: z.string().regex(/^\d{2}:\d{2}$/, 'Thời gian mở cửa không hợp lệ').optional().nullable(),
   afternoonClose: z.string().regex(/^\d{2}:\d{2}$/, 'Thời gian đóng cửa không hợp lệ').optional().nullable(),
+  announcementText: z.string().max(500, 'Nội dung thông báo quá dài').optional().nullable(),
+  isAnnouncementShow: z.boolean().optional(),
+
 
   // Vé/Khách hàng
   maxDailyTickets: z.coerce.number().int("Số lượng khách phải là số nguyên").min(1, 'Số lượng khách tối đa phải lớn hơn 0').optional(),

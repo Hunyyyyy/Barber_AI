@@ -47,6 +47,8 @@ export async function updateShopSettings(prevState: any, formData: FormData) {
       bankAccountNo: formData.get('bankAccountNo'),
       bankAccountName: formData.get('bankAccountName'),
       qrTemplate: formData.get('qrTemplate'), // <--- Thêm trường Mẫu QR
+      announcementText: formData.get('announcementText'),
+      isAnnouncementShow: formData.get('isAnnouncementShow') === 'on',
     };
 
     // 3. Xác thực dữ liệu
@@ -271,4 +273,96 @@ export async function getAllUsers() {
         take: 50, 
         select: { id: true, fullName: true, email: true, phone: true, role: true, createdAt: true }
     });
+}
+// 2. [MỚI] THÊM HÀM THỐNG KÊ (Copy hàm này xuống cuối file)
+export async function getDashboardStats() {
+  await checkAdmin();
+
+  const now = new Date();
+  
+  // 1. Xác định khoảng thời gian
+  // Đầu ngày hôm nay
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // Đầu tháng này
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Đầu năm này (để tính Top khách hàng năm)
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+  // 2. Thống kê Doanh thu & Số khách (Ngày & Tháng)
+  // Chỉ tính các vé đã thanh toán (PAID) hoặc Hoàn thành (COMPLETED - tùy logic quán bạn coi completed là đã thu tiền chưa)
+  //[cite_start]// Ở đây tôi dùng trạng thái PAID [cite: 2]
+  
+  const stats = await prisma.$transaction([
+    // Doanh thu hôm nay
+    prisma.queueTicket.aggregate({
+      _sum: { totalPrice: true },
+      _count: { id: true },
+      where: { 
+        status: 'PAID', 
+        date: { gte: startOfDay } 
+      }
+    }),
+    // Doanh thu tháng này
+    prisma.queueTicket.aggregate({
+      _sum: { totalPrice: true },
+      _count: { id: true },
+      where: { 
+        status: 'PAID', 
+        date: { gte: startOfMonth } 
+      }
+    }),
+  ]);
+
+  const dailyStats = {
+    revenue: stats[0]._sum.totalPrice || 0,
+    customers: stats[0]._count.id || 0
+  };
+
+  const monthlyStats = {
+    revenue: stats[1]._sum.totalPrice || 0,
+    customers: stats[1]._count.id || 0
+  };
+
+  // 3. Tìm khách hàng "Top Server" trong năm
+  // Logic: Group by userId, tính tổng tiền và số lần cắt, sắp xếp giảm dần theo tiền
+  const topCutomers = await prisma.queueTicket.groupBy({
+    by: ['userId'],
+    where: {
+      status: 'PAID',
+      date: { gte: startOfYear },
+      userId: { not: null } // Chỉ tính khách có tài khoản
+    },
+    _sum: {
+      totalPrice: true,
+    },
+    _count: {
+      id: true, // Số lần cắt
+    },
+    orderBy: {
+      _sum: {
+        totalPrice: 'desc',
+      },
+    },
+    take: 5, // Lấy top 5
+  });
+
+  // Lấy thêm thông tin chi tiết (Tên, SĐT) của top customers
+  // Vì groupBy không trả về relation user, phải query lại
+  const topCustomerDetails = await Promise.all(topCutomers.map(async (item) => {
+    const user = await prisma.user.findUnique({
+      where: { id: item.userId! },
+      select: { fullName: true, phone: true, avatarUrl: true }
+    });
+    return {
+      ...user,
+      totalSpent: item._sum.totalPrice || 0,
+      visitCount: item._count.id || 0,
+    };
+  }));
+
+  return {
+    daily: dailyStats,
+    monthly: monthlyStats,
+    topCustomers: topCustomerDetails
+  };
 }

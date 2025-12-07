@@ -70,16 +70,21 @@ export async function middleware(req: NextRequest) {
   const isRootPage = pathname === '/';
   // Logic Redirect
   if (isProtected && !user) {
+    // 1. Nếu muốn truy cập trang bảo vệ mà chưa login
     const redirectUrl = new URL('/login', req.url);
-    redirectUrl.searchParams.set('redirectedFrom', pathname);
+    // LƯU ĐƯỜNG DẪN HIỆN TẠI VÀO QUERY PARAM
+    redirectUrl.searchParams.set('redirectTo', pathname); // <--- Đổi tên param thành 'redirectTo' để đồng bộ
     return NextResponse.redirect(redirectUrl);
   }
 
   if (isAuthPage && user) {
+    // 2. Nếu đã login mà cố gắng truy cập /login hoặc /register
     if (userRole === 'ADMIN') {
       return NextResponse.redirect(new URL('/admin', req.url));
     }
-    return NextResponse.redirect(new URL('/home', req.url));
+    // Chuyển hướng về /home hoặc /queue, TÙY THUỘC vào logic của bạn.
+    // Giữ nguyên là /home vì logic loginAction sẽ xử lý redirectTo sau.
+    return NextResponse.redirect(new URL('/home', req.url)); 
   }
 
   if (isRootPage && user) {

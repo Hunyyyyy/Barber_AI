@@ -26,7 +26,7 @@ function LoginForm() {
   // @ts-ignore
   const [state, formAction] = useActionState(loginAction, null);
   const searchParams = useSearchParams(); // Hook gây ra lỗi nếu không có Suspense
-  const redirectTo = searchParams.get("redirectedFrom") || "/try-hair";
+  const redirectTo = searchParams.get("redirectedFrom") || "/home";
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
