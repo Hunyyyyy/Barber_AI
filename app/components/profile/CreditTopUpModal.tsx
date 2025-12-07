@@ -2,13 +2,13 @@
 'use client';
 import { createTopUpOrder } from '@/actions/credit.actions';
 import { formatCurrency } from '@/lib/utils';
-import { Copy, X } from 'lucide-react';
+import { Copy, Loader2, X } from 'lucide-react'; // Thêm Loader2
 import { useState } from 'react';
 
-const BANK_ID = 'MB'; 
-const ACCOUNT_NO = '0795516929'; 
-const ACCOUNT_NAME = 'Ngo Nhat Huy'; 
-const TEMPLATE = 'compact2'; 
+const BANK_ID = process.env.BANK_ID || 'MB'; 
+const ACCOUNT_NO = process.env.ACCOUNT_NO || '0795516929'; 
+const ACCOUNT_NAME = process.env.ACCOUNT_NAME || 'NGO NHAT HUY'; 
+const TEMPLATE = process.env.TEMPLATE||'compact2'; 
 
 interface Props {
   user: any;
@@ -68,33 +68,48 @@ export default function CreditTopUpModal({ user, onClose }: Props) {
 
         {/* STEP 1: CHỌN GÓI */}
         {step === 1 && (
-            <div className="p-6 space-y-3 overflow-y-auto">
-                {PACKAGES.map((pkg, idx) => (
-                    <div 
-                        key={idx} 
-                        onClick={() => handleSelectPackage(pkg)}
-                        className={`relative border-2 rounded-2xl p-4 cursor-pointer transition 
-                            ${pkg.popular 
-                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-                                : 'border-border hover:border-foreground bg-card hover:bg-accent'
-                            }
-                        `}
-                    >
-                        {pkg.popular && (
-                            <span className="absolute -top-3 right-4 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase shadow-sm">Phổ biến</span>
-                        )}
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <h4 className="font-bold text-foreground">{pkg.label}</h4>
-                                <p className="text-sm text-muted-foreground">+{pkg.credits} lượt tạo</p>
-                            </div>
-                            <div className="text-lg font-black text-foreground">{formatCurrency(pkg.price)}</div>
+            <div className="p-6 space-y-3 overflow-y-auto relative min-h-[300px]">
+                
+                {/* === [MỚI] LOADING OVERLAY === */}
+                {isLoading && (
+                    <div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-xl animate-in fade-in duration-200">
+                        <div className="bg-card p-4 rounded-full shadow-xl border border-border">
+                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
                         </div>
+                        <p className="mt-3 text-sm font-semibold text-foreground animate-pulse">
+                            Đang tạo mã thanh toán...
+                        </p>
                     </div>
-                ))}
+                )}
+
+                {/* DANH SÁCH GÓI (Bị làm mờ khi loading) */}
+                <div className={isLoading ? "opacity-40 pointer-events-none transition-opacity" : ""}>
+                    {PACKAGES.map((pkg, idx) => (
+                        <div 
+                            key={idx} 
+                            onClick={() => handleSelectPackage(pkg)}
+                            className={`relative border-2 rounded-2xl p-4 cursor-pointer transition mb-3
+                                ${pkg.popular 
+                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                                    : 'border-border hover:border-foreground bg-card hover:bg-accent'
+                                }
+                            `}
+                        >
+                            {pkg.popular && (
+                                <span className="absolute -top-3 right-4 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase shadow-sm">Phổ biến</span>
+                            )}
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <h4 className="font-bold text-foreground">{pkg.label}</h4>
+                                    <p className="text-sm text-muted-foreground">+{pkg.credits} lượt tạo</p>
+                                </div>
+                                <div className="text-lg font-black text-foreground">{formatCurrency(pkg.price)}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
         )}
-
         {/* STEP 2: QUÉT QR */}
         {step === 2 && (
              <div className="p-6 overflow-y-auto flex flex-col items-center animate-in slide-in-from-right-8 duration-300">
