@@ -4,9 +4,9 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PROTECTED_API_PATHS = [
-  '/api/sepay/webhook',
-];
+// const PROTECTED_API_PATHS = [
+//  // '/api/sepay/webhook',
+// ];
 
 // Khởi tạo Ratelimit (Giữ nguyên)
 const ratelimit = new Ratelimit({
@@ -43,14 +43,14 @@ export async function middleware(req: NextRequest) {
   // === B. LOGIC AUTH ===
 
   // 1. Check API Key nội bộ
-  if (PROTECTED_API_PATHS.some(p => pathname.startsWith(p))) {
-    const authHeader = req.headers.get('authorization');
-    const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET;
-    if (!authHeader || authHeader !== `Bearer ${INTERNAL_API_SECRET}`) {
-      return new NextResponse('Unauthorized – API nội bộ', { status: 401 });
-    }
-    return NextResponse.next();
-  }
+  // if (PROTECTED_API_PATHS.some(p => pathname.startsWith(p))) {
+  //   const authHeader = req.headers.get('authorization');
+  //   const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET;
+  //   if (!authHeader || authHeader !== `Bearer ${INTERNAL_API_SECRET}`) {
+  //     return new NextResponse('Unauthorized – API nội bộ', { status: 401 });
+  //   }
+  //   return NextResponse.next();
+  // }
 
   // 2. Khởi tạo Supabase (Sử dụng hàm từ file mới)
   const { supabase, response } = createMiddlewareSupabaseClient(req);
