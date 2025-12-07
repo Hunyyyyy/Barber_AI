@@ -22,7 +22,7 @@ export async function POST(req: Request) {
      const expectedSecret = process.env.INTERNAL_API_SECRET;
      console.log("DEBUG: Received Auth Header:", apiKey); 
     console.log("DEBUG: Expected Auth Header:", `Apikey ${expectedSecret}`);
-    if (apiKey !== `Apikey ${process.env.INTERNAL_API_SECRET}`) {
+    if (apiKey !== `Bearer ${process.env.INTERNAL_API_SECRET}`) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
