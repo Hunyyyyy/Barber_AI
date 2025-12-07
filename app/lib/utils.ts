@@ -5,3 +5,7 @@ export const formatCurrency = (amount: number): string => {
     currency: 'VND',
   }).format(amount);
 };
+export const cn = (...inputs: any[]) => {
+  return inputs.filter(Boolean).join(' ');
+};
+

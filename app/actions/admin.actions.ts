@@ -1,10 +1,11 @@
 // app/actions/admin.actions.ts
 "use server";
-
 import { prisma } from '@/lib/supabase/prisma/db';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { serviceSchema, updateShopSettingsSchema } from '@/lib/validation';
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 // --- MIDDLEWARE CHECK QUYỀN ADMIN ---
 async function checkAdmin() {
   const supabase = await createSupabaseServerClient();
@@ -29,39 +30,50 @@ export async function getShopSettings() {
   return await prisma.shopSetting.findUnique({ where: { id: '1' } });
 }
 
-export async function updateShopSettings(prevState: any ,formData: FormData) {
+export async function updateShopSettings(prevState: any, formData: FormData) {
   try {
+    // 1. Kiểm tra quyền quản trị
     await checkAdmin(); 
 
-    const maxDailyTicketsRaw = formData.get('maxDailyTickets') as string;
-    const maxDailyTickets = parseInt(maxDailyTicketsRaw);
+    // 2. Chuẩn bị dữ liệu từ FormData
+    const rawData = {
+      morningOpen: formData.get('morningOpen'),
+      morningClose: formData.get('morningClose'),
+      afternoonOpen: formData.get('afternoonOpen'),
+      afternoonClose: formData.get('afternoonClose'),
+      maxDailyTickets: formData.get('maxDailyTickets'),
+      isShopOpen: formData.get('isShopOpen') === 'on',
+      bankName: formData.get('bankName'),
+      bankAccountNo: formData.get('bankAccountNo'),
+      bankAccountName: formData.get('bankAccountName'),
+      qrTemplate: formData.get('qrTemplate'), // <--- Thêm trường Mẫu QR
+    };
 
-    if (isNaN(maxDailyTickets) || maxDailyTickets < 1) {
-      return { success: false, error: "Số lượng khách tối đa phải là số nguyên dương." };
+    // 3. Xác thực dữ liệu
+    const validationResult = updateShopSettingsSchema.safeParse(rawData);
+
+    if (!validationResult.success) {
+      // Xử lý lỗi từ Zod
+      const formattedErrors = validationResult.error.issues.map(issue => issue.message).join('; ');
+      return { success: false, error: formattedErrors || "Dữ liệu nhập vào không hợp lệ." };
     }
     
-    // [CẬP NHẬT] Thêm các trường bank vào data
+    // Dữ liệu đã được xác thực và định dạng
     const data = {
-      morningOpen: formData.get('morningOpen') as string,
-      morningClose: formData.get('morningClose') as string,
-      afternoonOpen: formData.get('afternoonOpen') as string,
-      afternoonClose: formData.get('afternoonClose') as string,
-      maxDailyTickets: maxDailyTickets,
-      isShopOpen: formData.get('isShopOpen') === 'on',
-      
-      // Thêm phần này:
-      bankName: formData.get('bankName') as string,           // VD: MB, VCB
-      bankAccountNo: formData.get('bankAccountNo') as string, // Số tài khoản
-      bankAccountName: formData.get('bankAccountName') as string, // Tên chủ TK
-      qrTemplate: formData.get('qrTemplate') as string,       // Mẫu QR
+      ...validationResult.data,
+      // Cần chuyển đổi lại isShopOpen vì Zod chỉ kiểm tra sự tồn tại (string)
+      isShopOpen: rawData.isShopOpen, 
+      maxDailyTickets: validationResult.data.maxDailyTickets, // Đảm bảo là số
     };
     
+    // 4. Lưu dữ liệu vào Database
     await prisma.shopSetting.upsert({
       where: { id: '1' },
-      update: data,
-      create: { id: '1', ...data },
+      update: data as any, // Sử dụng 'any' tạm thời nếu bạn chưa đồng bộ hóa type chính xác
+      create: { id: '1', ...data } as any,
     });
 
+    // 5. Revalidate
     revalidatePath('/admin');
     
     return { success: true, message: "Cập nhật cài đặt thành công!" };
@@ -69,7 +81,11 @@ export async function updateShopSettings(prevState: any ,formData: FormData) {
   } catch (error: any) {
     console.error("Update Shop Settings Error:", error);
     if (error.message.includes('Forbidden') || error.message.includes('Unauthorized')) {
-        return { success: false, error: "Bạn không có quyền quản trị." };
+      return { success: false, error: "Bạn không có quyền quản trị." };
+    }
+    // Xử lý lỗi Zod nếu nó chưa bị bắt ở trên (ít xảy ra)
+    if (error instanceof z.ZodError) {
+        return { success: false, error: "Lỗi xác thực dữ liệu đầu vào." };
     }
     return { success: false, error: "Lỗi hệ thống khi lưu cài đặt." };
   }
@@ -84,41 +100,74 @@ export async function getAdminServices() {
 
 export async function upsertService(prevState: any, formData: FormData) {
   try {
+    // 1. Kiểm tra quyền
     await checkAdmin();
     
-    const id = formData.get('id') as string;
-    const name = formData.get('name') as string;
-    const priceRaw = formData.get('price') as string;
-    const durationWorkRaw = formData.get('durationWork') as string;
-    const durationWaitRaw = formData.get('durationWait') as string || '0';
-    const isActive = formData.get('isActive') === 'on';
+    // 2. Chuẩn bị dữ liệu thô (Raw Data)
+    const rawData = {
+      id: formData.get('id'),
+      name: formData.get('name'),
+      price: formData.get('price'),
+      durationWork: formData.get('durationWork'),
+      durationWait: formData.get('durationWait'),
+      // isActive được xử lý ngoài Zod do cách FormData trả về giá trị 'on'
+      isActive: formData.get('isActive') === 'on', 
+    };
 
-    // Validate cơ bản
-    if (!name || name.trim().length === 0) {
-      return { success: false, error: "Tên dịch vụ không được để trống" };
+    // 3. Validation bằng Zod
+    // Chúng ta chỉ parse các trường không phải boolean trong Zod
+    const validationResult = serviceSchema.safeParse(rawData);
+
+    if (!validationResult.success) {
+      // Gộp các thông báo lỗi Zod thành một chuỗi dễ đọc
+      const errorMessages = validationResult.error.issues.map(issue => {
+        // Lấy tên trường và thông báo lỗi
+        const fieldName = String(issue.path[0]);
+        return `${fieldName}: ${issue.message}`;
+      }).join('; ');
+
+      return { success: false, error: errorMessages };
     }
+
+    // Dữ liệu đã sạch (bao gồm cả trường default cho durationWait)
+    const validatedData = validationResult.data;
     
-    const price = parseInt(priceRaw);
-    const durationWork = parseInt(durationWorkRaw);
-    const durationWait = parseInt(durationWaitRaw);
+    // Dữ liệu cuối cùng để lưu vào DB (kết hợp isActive)
+    const dataToSave = {
+        name: validatedData.name,
+        price: validatedData.price,
+        durationWork: validatedData.durationWork,
+        durationWait: validatedData.durationWait,
+        isActive: rawData.isActive, // Dùng giá trị boolean đã xử lý
+    };
+    
+    const serviceId = validatedData.id;
 
-    if (isNaN(price) || price < 0) return { success: false, error: "Giá tiền không hợp lệ" };
-    if (isNaN(durationWork) || durationWork <= 0) return { success: false, error: "Thời gian làm phải lớn hơn 0" };
-
-    const data = { name, price, durationWork, durationWait, isActive };
-
-    if (id) {
-      await prisma.service.update({ where: { id }, data });
+    // 4. Upsert (Tạo mới hoặc Cập nhật)
+    if (serviceId) {
+      // Cập nhật
+      await prisma.service.update({ 
+        where: { id: serviceId }, 
+        data: dataToSave 
+      });
     } else {
-      await prisma.service.create({ data });
+      // Thêm mới
+      await prisma.service.create({ 
+        data: dataToSave 
+      });
     }
 
+    // 5. Revalidate
     revalidatePath('/admin/services');
-    return { success: true, message: id ? "Cập nhật thành công!" : "Thêm mới thành công!" };
+    
+    return { success: true, message: serviceId ? "Cập nhật thành công!" : "Thêm mới thành công!" };
 
   } catch (error: any) {
-    console.error("admin.actions upsertService",error);
-    return { success: false, error:"Lỗi hệ thống khi lưu dịch vụ" };
+    console.error("admin.actions upsertService", error);
+    if (error.message.includes('Forbidden') || error.message.includes('Unauthorized')) {
+        return { success: false, error: "Bạn không có quyền quản trị." };
+    }
+    return { success: false, error: "Lỗi hệ thống khi lưu dịch vụ" };
   }
 }
 

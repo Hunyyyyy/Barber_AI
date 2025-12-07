@@ -3,6 +3,8 @@ import Footer from "@/components/layout/Footer";
 import LeftSideBar from "@/components/layout/LeftSideBar";
 import ServerHeader from "@/components/layout/ServerHeader";
 import NextTopLoader from 'nextjs-toploader';
+import { Toaster } from "sonner";
+
 export const metadata = {
   title: "Suggest Hairstyles - Barber App",
   description: "Get personalized hairstyle suggestions based on your facial features.",
@@ -12,6 +14,7 @@ export default async function SuggestLayout({ children }: { children: React.Reac
   const role = await getCurrentUserRoleAction();
   return (
     <div className="h-screen flex flex-col bg-background text-foreground font-sans overflow-hidden">
+      <Toaster richColors position="top-center" />
       <NextTopLoader 
         color="currentColor"
         showSpinner={false}

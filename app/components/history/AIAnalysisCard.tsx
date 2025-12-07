@@ -3,10 +3,9 @@
 import { Sparkles } from 'lucide-react';
 import Image from 'next/image';
 
-export default function AIAnalysisCard({ item }: { item: any }) {
+export default function AIAnalysisCard({ item, onClick }: { item: any, onClick: () => void }) {
   return (
-    // SỬA: bg-card, border-border
-    <div className="bg-card border border-border rounded-2xl overflow-hidden hover:shadow-lg hover:border-primary/50 transition-all duration-300 group">
+    <div onClick={onClick} className="cursor-pointer bg-card border border-border rounded-2xl overflow-hidden hover:shadow-lg hover:border-primary/50 transition-all duration-300 group">
       <div className="relative aspect-[3/4] bg-muted border-b border-border">
           {/* Ảnh gốc */}
           <Image 
