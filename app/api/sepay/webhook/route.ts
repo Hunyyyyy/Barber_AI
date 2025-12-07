@@ -19,11 +19,8 @@ export async function POST(req: Request) {
   try {
     // 1. Auth check (giữ nguyên)
      const apiKey = req.headers.get('Authorization'); 
-     const expectedSecret = process.env.INTERNAL_API_SECRET;
-     console.log("DEBUG: Received Auth Header:", apiKey); 
-    console.log("DEBUG: Expected Auth Header:", `Apikey ${expectedSecret}`);
     if (apiKey !== `Apikey ${process.env.INTERNAL_API_SECRET}`) {
-        console.log("❌ Auth Failed. Expected:", `Apikey ${expectedSecret}`);
+       
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -110,15 +107,27 @@ export async function POST(req: Request) {
     // ============================================================
     // CASE 2: NẠP CREDIT (Cú pháp: NAP123456)
     // ============================================================
-    const napMatch = content.match(/NAP\d+/i);
+   // SỬA: Thay /NAP\d+/i bằng /NAP[A-Z0-9]+/i để bắt cả chữ và số
+    const napMatch = content.match(/NAP[A-Z0-9]+/i); 
+
     if (napMatch) {
         const code = napMatch[0].toUpperCase();
+        
+        // Thêm log để debug xem bắt được mã gì
+        console.log("DEBUG: Extracted Code:", code);
+
         const order = await prisma.creditTransaction.findUnique({
             where: { code, status: 'PENDING' }
         });
 
-        if (!order) return NextResponse.json({ success: false, message: 'Đơn nạp không tồn tại' });
-        if (transferAmount < order.amount) return NextResponse.json({ success: false, message: 'Nạp thiếu tiền' });
+        if (!order) {
+            console.log("DEBUG: Order not found for code:", code);
+            return NextResponse.json({ success: false, message: 'Đơn nạp không tồn tại' });
+        }
+
+        if (transferAmount < order.amount) {
+            return NextResponse.json({ success: false, message: 'Nạp thiếu tiền' });
+        }
 
         // Update DB
         await prisma.$transaction([
@@ -133,11 +142,8 @@ export async function POST(req: Request) {
         ]);
 
         return NextResponse.json({ success: true, message: 'Nạp credit thành công' });
-    }
-
-    return NextResponse.json({ success: false, message: 'Sai cú pháp hoặc không tìm thấy đơn' });
-
-  } catch (error) {
+    } 
+    }catch (error) {
     console.error('SePay Webhook Error:', error);
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
