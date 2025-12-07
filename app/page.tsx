@@ -10,7 +10,7 @@ export default function Home() {
           {/* Logo */}
           <div className="flex items-center gap-2 font-bold text-2xl tracking-tighter text-amber-500">
             <Scissors className="w-8 h-8" />
-            <span>BARBER.AI</span>
+            <span>DAI BARBER SHOP</span>
           </div>
 
           {/* Auth Buttons */}
