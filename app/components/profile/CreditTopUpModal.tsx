@@ -1,9 +1,11 @@
 // components/profile/CreditTopUpModal.tsx
 'use client';
-import { createTopUpOrder } from '@/actions/credit.actions';
+import { checkTransactionStatus, createTopUpOrder } from '@/actions/credit.actions';
 import { formatCurrency } from '@/lib/utils';
-import { Copy, Loader2, X } from 'lucide-react'; // Thêm Loader2
-import { useState } from 'react';
+import { CheckCircle, Copy, Loader2, X } from 'lucide-react'; // Thêm Loader2
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { toast } from "sonner";
 
 const BANK_ID = process.env.NEXT_PUBLIC_BANK_ID || 'MB'; 
 const ACCOUNT_NO = process.env.NEXT_PUBLIC_ACCOUNT_NO || '0795516929'; 
@@ -24,14 +26,44 @@ const PACKAGES = [
 ];
 
 export default function CreditTopUpModal({ user, onClose }: Props) {
+    const router = useRouter();
   const [step, setStep] = useState(1);
   const [selectedPkg, setSelectedPkg] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [transCode, setTransCode] = useState('');
-
+    const [isSuccess, setIsSuccess] = useState(false);
   const qrImgUrl = selectedPkg 
     ? `https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-${TEMPLATE}.png?amount=${selectedPkg.price}&addInfo=${transCode}&accountName=${encodeURIComponent(ACCOUNT_NAME)}`
     : '';
+    useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (step === 2 && transCode && !isSuccess) {
+      // Hàm kiểm tra
+      const checkStatus = async () => {
+        const res = await checkTransactionStatus(transCode);
+        if (res.success && res.isPaid) {
+          setIsSuccess(true);
+          toast.success(`Nạp thành công +${res.credits} Credits!`);
+          
+          // Refresh lại trang để cập nhật số dư trên Header
+          router.refresh(); 
+          
+          // Tự động đóng modal sau 3 giây
+          setTimeout(() => {
+             onClose();
+          }, 3000);
+        }
+      };
+
+      // Chạy ngay lập tức
+      checkStatus();
+      // Lặp lại mỗi 3 giây
+      interval = setInterval(checkStatus, 3000);
+    }
+
+    return () => clearInterval(interval);
+  }, [step, transCode, isSuccess, router, onClose]);
   const handleSelectPackage = async (pkg: any) => {
     try {
         setIsLoading(true);
@@ -56,7 +88,13 @@ export default function CreditTopUpModal({ user, onClose }: Props) {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
       {/* SỬA: bg-card, text-card-foreground */}
       <div className="bg-card rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-        
+        {isSuccess && (
+            <div className="absolute inset-0 z-50 bg-green-500 flex flex-col items-center justify-center text-white animate-in zoom-in duration-300">
+                <CheckCircle className="w-20 h-20 mb-4 animate-bounce" />
+                <h3 className="text-2xl font-bold">Thanh toán thành công!</h3>
+                <p className="mt-2 text-green-100">Đã cộng Credits vào tài khoản.</p>
+            </div>
+        )}
         {/* Header */}
         <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
           <h3 className="font-bold text-lg text-foreground">

@@ -9,6 +9,7 @@ export async function createTopUpOrder(amount: number, credits: number) {
     if (!user) return { success: false, error: "Unauthorized" };
 
     let order = null;
+    
     let uniqueCode = '';
     const MAX_RETRIES = 5; 
 
@@ -56,4 +57,22 @@ export async function createTopUpOrder(amount: number, credits: number) {
     }
 
     return { success: true, order };
+}
+export async function checkTransactionStatus(code: string) {
+  try {
+    const transaction = await prisma.creditTransaction.findUnique({
+      where: { code: code },
+      select: { status: true, credits: true }
+    });
+
+    if (!transaction) return { success: false };
+
+    return { 
+      success: true, 
+      isPaid: transaction.status === 'PAID',
+      credits: transaction.credits 
+    };
+  } catch (error) {
+    return { success: false };
+  }
 }
